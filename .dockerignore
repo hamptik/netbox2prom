@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 .env
 *.md
+docs/
 docker-compose.yml
 Dockerfile
 .dockerignore
