@@ -48,7 +48,7 @@ python -m netbox2prom
 | `NETBOX2PROM_CONFIG` | Path to config file | `/etc/netbox2prom/config.yml` |
 | `ENABLE_PROMETHEUS` | Enable Prometheus generator | `true` |
 | `ENABLE_ALLOY` | Enable Alloy generator | `true` |
-| `ENABLE_SYSLOG` | Enable syslog-ng generator *(in development)* | `false` |
+| `ENABLE_SYSLOG` | Enable syslog-ng generator | `false` |
 | `POLL_INTERVAL` | Poll interval in seconds | `300` |
 | `RUN_ONCE` | Run once and exit | `false` |
 | `LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |
@@ -90,6 +90,20 @@ alloy:
       conditions: { ... }
       target_field: main_ip
       labels: { ... }
+
+syslog:
+  config_file: /etc/syslog-ng/conf.d/netbox2prom.conf
+  block_name: fix_hostnames
+  reload:
+    method: http
+    address: "http://syslog-ng:601"
+  groups:
+    my_group:
+      conditions: { ... }
+      host_field: main_ip
+      template: |-
+            set("{name}", value("PROGRAM") \
+                condition("${HOST}" eq "{ip}"));
 ```
 
 ### Device matching conditions
@@ -123,7 +137,7 @@ In `default_labels`, `labels` (alloy), and `template` (syslog), you can use plac
 | `{vendor}` / `{model}` / `{role}` | Slug values |
 | `{snmp_ver}` | SNMP version |
 
-> In syslog templates, escape syslog-ng braces with double braces: `${{HOST}}` -> `${HOST}`.
+> In syslog templates, `{name}`, `{ip}` and other placeholders are substituted directly. Syslog-ng macros like `${HOST}` are left untouched — no escaping needed.
 
 ### Alloy group options
 
@@ -195,6 +209,31 @@ discovery.relabel "icmp" {
   }
 }
 ```
+
+### Syslog-ng
+
+The tool generates a standalone file in `conf.d/` that it fully owns. Make sure syslog-ng includes it and references the rewrite rule:
+
+```syslog-ng
+# In syslog-ng.conf — include managed files:
+@include "/etc/syslog-ng/conf.d/*.conf"
+
+# Apply the rewrite rule in your log path:
+log {
+    source(s_net);
+    rewrite(fix_hostnames);
+    destination(d_all);
+};
+```
+
+Reload is triggered automatically after each config update. Configure the method under `syslog.reload`:
+
+| Method | Config | Use case |
+|---|---|---|
+| `http` | `address: "http://syslog-ng:601"` | Container sidecar / remote syslog-ng with HTTP API |
+| `signal` | `pid_file: /var/run/syslog-ng.pid` | Same host or shared PID namespace |
+| `command` | `command: "syslog-ng-ctl reload"` | Flexible — any shell command |
+| `none` | — | External watcher handles reload (inotify, etc.) |
 
 ## Building the Docker image
 

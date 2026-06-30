@@ -14,8 +14,7 @@ services:
       - ./config.yml:/etc/netbox2prom/config.yml:ro
       - prometheus_scrape:/opt/configs/prometheus-scrape
       - alloy_targets:/etc/alloy
-      # Uncomment when ENABLE_SYSLOG=true:
-      # - /etc/syslog-ng/conf.d:/etc/syslog-ng/conf.d
+      - /etc/syslog-ng/conf.d:/etc/syslog-ng/conf.d
 
 volumes:
   prometheus_scrape:

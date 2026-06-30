@@ -624,15 +624,34 @@ alloy:
 # ---------------------------------------------------------------------------
 # Syslog-ng rewrite-rules generator
 # ---------------------------------------------------------------------------
+# The tool fully owns config_file and regenerates it from scratch each run.
+# Make sure syslog-ng includes it via:
+#   @include "/etc/syslog-ng/conf.d/*.conf"
+# Then reference the rewrite rule in your log path:
+#   log { source(s_net); rewrite(fix_hostnames); ... };
 syslog:
   config_file: /etc/syslog-ng/conf.d/netbox2prom.conf
   block_name: fix_hostnames
 
+  # Reload syslog-ng after config update.
+  # Methods: http | signal | command | none
+  reload:
+    method: http
+    address: "http://syslog-ng:601"
+    # --- signal: send SIGHUP via PID file ---
+    # method: signal
+    # pid_file: /var/run/syslog-ng.pid
+    # --- command: run arbitrary shell command ---
+    # method: command
+    # command: "syslog-ng-ctl reload"
+    # --- none: skip reload (external watcher handles it) ---
+    # method: none
+
   # Epilogue appended after all group rules inside the rewrite block.
-  # Use double braces for literal syslog-ng variables: ${{HOST}} -> ${HOST}
+  # Syslog-ng macros like ${HOST} are used as-is — no escaping needed.
   epilogue_template: |-
-        set("${{SOURCEIP}}", value("HOST")
-            condition("${{HOST}}" eq ""));
+        set("${SOURCEIP}", value("HOST")
+            condition("${HOST}" eq ""));
 
   groups:
     # Rewrite PROGRAM field for switches that send malformed hostnames.
@@ -645,4 +664,4 @@ syslog:
       host_field: main_ip
       template: |-
             set("{name}", value("PROGRAM") \
-                condition("${{HOST}}" eq "{ip}"));
+                condition("${HOST}" eq "{ip}"));
