@@ -48,7 +48,7 @@ python -m netbox2prom
 | `NETBOX2PROM_CONFIG` | Path to config file | `/etc/netbox2prom/config.yml` |
 | `ENABLE_PROMETHEUS` | Enable Prometheus generator | `true` |
 | `ENABLE_ALLOY` | Enable Alloy generator | `true` |
-| `ENABLE_SYSLOG` | Enable syslog-ng generator *(in development)* | `false` |
+| `ENABLE_SYSLOG` | Enable syslog-ng generator | `false` |
 | `POLL_INTERVAL` | Poll interval in seconds | `300` |
 | `RUN_ONCE` | Run once and exit | `false` |
 | `LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |

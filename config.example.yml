@@ -628,6 +628,13 @@ syslog:
   config_file: /etc/syslog-ng/conf.d/netbox2prom.conf
   block_name: fix_hostnames
 
+  # Path to the syslog-ng control socket for reload via syslog-ng-ctl.
+  control_socket: /var/lib/syslog-ng/syslog-ng.ctl
+
+  # Validate generated config with syslog-ng --syntax-only before applying.
+  # Set to false to disable (uses Python structural validation only).
+  # syntax_check: true
+
   # Epilogue appended after all group rules inside the rewrite block.
   # Use double braces for literal syslog-ng variables: ${{HOST}} -> ${HOST}
   epilogue_template: |-

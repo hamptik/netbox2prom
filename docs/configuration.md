@@ -161,12 +161,13 @@ See [Receiver Setup → Alloy](receivers-setup.md#2-grafana-alloy-blackbox-icmp)
 
 ## syslog
 
-Generates syslog-ng rewrite rules inside a single `rewrite` block.
+Generates syslog-ng rewrite rules inside a single `rewrite` block. The output file is **fully managed** — generated from scratch on each run.
 
 ```yaml
 syslog:
   config_file: /etc/syslog-ng/conf.d/netbox2prom.conf
   block_name: fix_hostnames
+  control_socket: /var/lib/syslog-ng/syslog-ng.ctl
   epilogue_template: |-
         set("${{SOURCEIP}}", value("HOST")
             condition("${{HOST}}" eq ""));
@@ -176,17 +177,21 @@ syslog:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `config_file` | string | *(required)* | Path to the syslog-ng config file to modify. Must exist before first run |
-| `block_name` | string | `fix_hostnames` | Name of the `rewrite` block. Used for finding/replacing existing block |
+| `config_file` | string | *(required)* | Path to the syslog-ng config file (fully managed, created if not exists) |
+| `block_name` | string | `fix_hostnames` | Name of the `rewrite` block in the generated file |
+| `control_socket` | string | `/var/lib/syslog-ng/syslog-ng.ctl` | Path to the syslog-ng control socket for `syslog-ng-ctl reload` |
+| `syntax_check` | bool | `true` | Validate generated config with `syslog-ng --syntax-only` before applying. Skips gracefully if binary not found |
+| `health_check_delay` | int | `3` | Seconds to wait after reload before checking syslog-ng status |
 | `epilogue_template` | string | *(empty)* | Rules appended after all group rules. Uses double-brace escaping for syslog-ng macros |
 | `groups` | dict | `{}` | Group definitions (see [Syslog group options](#syslog-group-options)) |
 
 **Output behavior:**
 
-- If a `rewrite <block_name> { ... }` block already exists in the file → **replaced** (found by brace matching)
-- Else if the file contains a `log {` block → new rewrite block is **inserted before** the first one
-- Else → block is **appended** to the end of the file
-- If no devices match any group → **no changes** are made
+- The file at `config_file` is **generated from scratch** on each run (not modified in-place).
+- If content is unchanged → **no write, no reload** (no-op).
+- If content changed → file is written **atomically** (temp file + rename), then syslog-ng is **reloaded** via `syslog-ng-ctl reload`.
+- After reload, syslog-ng status is checked. If not running → **rollback** to previous config (`.bak`).
+- If no devices match any group → file is **removed** (if it existed) and syslog-ng is reloaded.
 
 See [Receiver Setup → syslog-ng](receivers-setup.md#3-syslog-ng-hostname-rewrites) for details.
 

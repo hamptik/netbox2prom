@@ -15,7 +15,9 @@ services:
       - prometheus_scrape:/opt/configs/prometheus-scrape
       - alloy_targets:/etc/alloy
       # Uncomment when ENABLE_SYSLOG=true:
+      # Ensure UID/GID of this container matches syslog-ng (see docs/receivers-setup.md).
       # - /etc/syslog-ng/conf.d:/etc/syslog-ng/conf.d
+      # - /var/lib/syslog-ng:/var/lib/syslog-ng
 
 volumes:
   prometheus_scrape:
