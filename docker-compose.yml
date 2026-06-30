@@ -1,6 +1,6 @@
 services:
   netbox2prom:
-    image: hamptik/netbox2prom:latest
+    image: ghcr.io/hamptik/netbox2prom:latest
     build: .
     restart: unless-stopped
     environment:

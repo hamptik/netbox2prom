@@ -1,0 +1,11 @@
+config.yml
+.git
+.github
+__pycache__/
+*.pyc
+.env
+*.md
+docker-compose.yml
+Dockerfile
+.dockerignore
+.gitignore

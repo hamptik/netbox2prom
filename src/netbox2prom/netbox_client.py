@@ -29,27 +29,25 @@ class NetBoxClient:
             })
         return self._session
 
-    def _fetch_all(self, path: str) -> list[dict]:
+    def _fetch_all(self, endpoint: str, params: dict | None = None) -> list[dict]:
         results: list[dict] = []
-        next_url = path
-        while next_url:
-            if next_url.startswith("http"):
-                full_url = next_url
-            else:
-                full_url = f"{self._url.rstrip('/')}{next_url}"
-            r = self.session.get(full_url, timeout=self._timeout)
-            r.raise_for_status()
+        url = f"{self._url.rstrip('/')}{endpoint}"
+        query = params
+        while url:
+            r = self.session.get(url, params=query, timeout=self._timeout)
+            if not r.ok:
+                logger.error("NetBox API %s -> HTTP %d: %s", r.url, r.status_code, r.text[:500])
+                r.raise_for_status()
             data = r.json()
             results.extend(data.get("results", []))
-            next_url = data.get("next")
-            if next_url and next_url.startswith(self._url):
-                next_url = next_url[len(self._url):]
+            url = data.get("next")
+            query = None
         return results
 
     def get_devices(self) -> list[Device]:
-        tag_filter = f"?tag={self._tag}" if self._tag else ""
-        raw_physical = self._fetch_all(f"{self._endpoints['devices']}{tag_filter}")
-        raw_virtual = self._fetch_all(f"{self._endpoints['virtual_machines']}{tag_filter}")
+        params = {"tag": self._tag} if self._tag else None
+        raw_physical = self._fetch_all(self._endpoints["devices"], params)
+        raw_virtual = self._fetch_all(self._endpoints["virtual_machines"], params)
         logger.info(
             "Fetched %d physical and %d virtual devices",
             len(raw_physical),
