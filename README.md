@@ -55,146 +55,17 @@ python -m netbox2prom
 
 > If none of the `ENABLE_*` variables are set, both Prometheus and Alloy generators are enabled. At least one must be enabled — the container will refuse to start otherwise.
 
-## Configuration
+## Documentation
 
-Configuration is stored in a YAML file (`config.example.yml` is a full example). The NetBox token is passed exclusively via the `NETBOX_TOKEN` environment variable.
+Detailed guides live in the [`docs/`](docs/) folder:
 
-### Structure
-
-```yaml
-netbox:
-  url: "https://netbox.example.com"
-  tag: monitoring
-
-prometheus:
-  snmp_exporter_address: "snmp-exporter:9116"
-  metrics_path: /snmp
-  scrape_dir: /opt/configs/prometheus-scrape
-  reload_address: "http://prometheus:9090"
-  default_labels:
-    instance: "{name}"
-    criticality: "{criticality}"
-  groups:
-    my_job:
-      conditions: { ... }
-      params: { ... }
-      ip_field: main_ip
-
-alloy:
-  targets_file: /etc/alloy/blackbox_targets.json
-  default_labels:
-    __param_module: icmp
-    environment: prod
-  groups:
-    my_rule:
-      conditions: { ... }
-      target_field: main_ip
-      labels: { ... }
-```
-
-### Device matching conditions
-
-Conditions are declarative rules for matching devices. Supported types:
-
-| Value | Semantics |
+| Guide | Description |
 |---|---|
-| `vendor: dell` | Exact match (string comparison) |
-| `role: [switch, router]` | Value is in list |
-| `main_ip: not_null` | Field is populated |
-| `oob_ip: null` | Field is empty |
-| `vendor: any_except` + `vendor_exclude: [...]` | Populated and not in exclude list |
-| `vendor: not_in` + `vendor_exclude: [...]` | Not in exclude list (empty field passes) |
-| `tags_contains: [management]` | Device has at least one of the specified tags |
-| `snmp_ver: 3` | Exact numeric match |
-| `virtual: false` | Boolean comparison |
+| [NetBox Setup](docs/netbox-setup.md) | API token, custom fields (`snmp_ver`, `snmp_cipher`, `criticality`), config contexts, tags, and the NetBox device fields read by the service |
+| [Configuration Reference](docs/configuration.md) | Full YAML reference: all condition types (`exact`, `list`, `not_null`, `null`, `any_except`, `not_in`, `tags_contains`), placeholders, and group options for every generator |
+| [Receiver Setup](docs/receivers-setup.md) | Prometheus (`scrape_config_files`, snmp_exporter, reload), Alloy (`discovery.file`, blackbox exporter, relabel), and syslog-ng (rewrite blocks, template syntax) |
 
-### Label placeholders
-
-In `default_labels`, `labels` (alloy), and `template` (syslog), you can use placeholders:
-
-| Placeholder | Value |
-|---|---|
-| `{name}` | Device name (with `name_prefix`/`name_suffix` applied) |
-| `{target_ip}` | Target IP address (from `target_field`/`ip_field`) |
-| `{device_label}` | `virtual` or `device` |
-| `{criticality}` | Custom field `criticality` value |
-| `{os_type}` / `{os}` | OS from config context |
-| `{main_ip}` / `{oob_ip}` | Corresponding IP |
-| `{vendor}` / `{model}` / `{role}` | Slug values |
-| `{snmp_ver}` | SNMP version |
-
-> In syslog templates, escape syslog-ng braces with double braces: `${{HOST}}` -> `${HOST}`.
-
-### Alloy group options
-
-| Option | Description |
-|---|---|
-| `target_field` | Device field to use as IP (`main_ip`, `oob_ip`) |
-| `exclusive: true` | On match, skip remaining rules for this device |
-| `name_prefix` / `name_suffix` | Prepend/append to device name |
-
-## NetBox setup
-
-### Custom fields (DCIM -> Device)
-
-| Slug | Type | Values |
-|---|---|---|
-| `snmp_ver` | Integer | 0-3, default 0 |
-| `snmp_cipher` | Selection | aes/des |
-| `criticality` | Selection or Text | your choice |
-
-### Config context
-
-Create config contexts for Linux/Windows platforms to populate the OS field:
-
-```json
-{ "os": "linux" }
-```
-
-### Tag
-
-| Slug | Object types |
-|---|---|
-| `monitoring` | Device, Virtual Machine |
-
-## Receiver setup
-
-### Prometheus
-
-In `prometheus.yml`:
-
-```yaml
-scrape_config_files:
-  - '/opt/configs/prometheus-scrape/*.yml'
-```
-
-### Alloy
-
-```alloy
-discovery.file "icmp" {
-  files = ["/etc/alloy/blackbox_targets.json"]
-  refresh_interval = "30s"
-}
-
-prometheus.exporter.blackbox "icmp" {
-  config_file = "/etc/alloy/blackbox_modules.yml"
-  targets     = discovery.file.icmp.targets
-}
-
-discovery.relabel "icmp" {
-  targets = prometheus.exporter.blackbox.icmp.targets
-
-  rule {
-    source_labels = ["__param_target"]
-    target_label = "instance"
-  }
-
-  rule {
-    source_labels = ["name"]
-    target_label = "target_name"
-  }
-}
-```
+Configuration is stored in a YAML file — see [`config.example.yml`](config.example.yml) for a full annotated example. The NetBox token is passed exclusively via the `NETBOX_TOKEN` environment variable.
 
 ## Building the Docker image
 
