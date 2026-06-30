@@ -9,7 +9,7 @@ from .log import setup_logging
 from .netbox_client import NetBoxClient
 from .generators.alloy import generate_alloy_targets
 from .generators.prometheus import generate_prometheus_configs, reload_prometheus
-from .generators.syslog import generate_syslog_config
+from .generators.syslog import generate_syslog_config, reload_syslog
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,9 @@ def run_once(config) -> None:
 
     if "syslog" in enabled:
         logger.info("=== Syslog generator ===")
-        generate_syslog_config(devices, config.syslog)
+        changed = generate_syslog_config(devices, config.syslog)
+        if changed:
+            reload_syslog(config.syslog)
 
 
 def main() -> None:
