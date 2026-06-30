@@ -28,7 +28,7 @@ def generate_syslog_config(devices: list[Device], syslog_config: dict) -> None:
                 continue
             name_clean = dev.name.strip().replace('"', '\\"')
             rules.append(template.format(name=name_clean, ip=ip))
-            logger.info("Syslog [%s]: Added rule for %s", group_name, dev.name)
+            logger.debug("Syslog [%s]: Added rule for %s", group_name, dev.name)
 
     if not rules:
         logger.info("No devices matched syslog rules")

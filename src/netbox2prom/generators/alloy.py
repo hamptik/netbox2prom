@@ -50,7 +50,7 @@ def generate_alloy_targets(devices: list[Device], alloy_config: dict) -> None:
                 "targets": [target_ip],
                 "labels": resolved_labels,
             })
-            logger.info("Alloy [%s]: Added %s with IP %s", group_name, effective_name, target_ip)
+            logger.debug("Alloy [%s]: Added %s with IP %s", group_name, effective_name, target_ip)
 
             if gcfg.get("exclusive", False):
                 skip_remaining = True

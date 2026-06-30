@@ -50,7 +50,7 @@ def generate_prometheus_configs(devices: list[Device], prometheus_config: dict) 
                 "targets": [target_ip],
                 "labels": labels,
             })
-            logger.info("Prometheus [%s]: Added %s with IP %s", group_name, dev.name, target_ip)
+            logger.debug("Prometheus [%s]: Added %s with IP %s", group_name, dev.name, target_ip)
 
         filename = os.path.join(out_dir, f"{group_name}.yml")
 
