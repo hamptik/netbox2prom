@@ -1,0 +1,648 @@
+# ============================================================================
+# netbox2prom configuration
+# ============================================================================
+# Copy this file to config.yml and adjust values for your environment.
+# NetBox API token is NOT stored here — set the NETBOX_TOKEN env variable.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# NetBox connection
+# ---------------------------------------------------------------------------
+netbox:
+  url: "https://netbox.example.com"
+  tag: monitoring
+  timeout: 30
+  # Override API endpoints if your NetBox uses non-standard paths:
+  # endpoints:
+  #   devices: /api/dcim/devices/
+  #   virtual_machines: /api/virtualization/virtual-machines/
+
+# ---------------------------------------------------------------------------
+# Prometheus scrape-config generator
+# ---------------------------------------------------------------------------
+prometheus:
+  snmp_exporter_address: "snmp-exporter:9116"
+  metrics_path: /snmp
+  scrape_dir: /opt/configs/prometheus-scrape
+  reload_address: "http://prometheus:9090"
+  # reload_address: ""    # leave empty to skip reload
+
+  # Default labels applied to every static_config target.
+  # Placeholders: {name}, {target_ip}, {device_label}, {criticality},
+  #               {os_type}, {vendor}, {model}, {role}, {snmp_ver}
+  default_labels:
+    instance: "{name}"
+    criticality: "{criticality}"
+
+  groups:
+    # ---- IPMI / BMC (SNMPv3) ----
+    snmpv3_ipmi_idrac-automated:
+      conditions:
+        vendor: dell
+        oob_ip: not_null
+        snmp_ver: 3
+        virtual: false
+        role: any_except
+        role_exclude: [switch, ups, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_ipmi_auth]
+        module: [system, ip_mib, dell_idrac]
+      device_type: device
+      vendor: dell
+      ip_field: oob_ip
+
+    snmpv3_ipmi_bmc-automated:
+      conditions:
+        vendor: gigabyte
+        oob_ip: not_null
+        snmp_ver: 3
+        virtual: false
+        role: any_except
+        role_exclude: [switch, ups, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_ipmi_auth]
+        module: [system, ip_mib, gigabyte]
+      device_type: device
+      vendor: gigabyte
+      ip_field: oob_ip
+
+    snmpv3_ipmi_hpe-automated:
+      conditions:
+        vendor: hpe
+        oob_ip: not_null
+        snmp_ver: 3
+        virtual: false
+        role: any_except
+        role_exclude: [switch, ups, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_ipmi_auth]
+        module: [system, ip_mib, hpe]
+      device_type: device
+      vendor: hpe
+      ip_field: oob_ip
+
+    snmpv3_ipmi_other-automated:
+      conditions:
+        vendor: any_except
+        vendor_exclude: [gigabyte, hpe, dell]
+        oob_ip: not_null
+        snmp_ver: 3
+        virtual: false
+        role: any_except
+        role_exclude: [switch, ups, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_ipmi_auth]
+        module: [system, ip_mib]
+      device_type: device
+      vendor: other
+      ip_field: oob_ip
+
+    # ---- Network switches / routers ----
+    snmpv3_network_huawei-automated:
+      conditions:
+        vendor: huawei
+        snmp_ver: 3
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_aes]
+        module: [system, ip_mib, huawei]
+      device_type: network
+      vendor: huawei
+      ip_field: main_ip
+
+    snmpv2_network_huawei-automated:
+      conditions:
+        vendor: huawei
+        snmp_ver: 2
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v2_network_auth]
+        module: [system, ip_mib, huawei]
+      device_type: network
+      vendor: huawei
+      ip_field: main_ip
+
+    snmpv2_network_hpe-automated:
+      conditions:
+        vendor: hpe
+        snmp_ver: 2
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v2_network_auth]
+        module: [system, ip_mib, h3c]
+      device_type: network
+      vendor: hpe
+      ip_field: main_ip
+
+    snmpv3_network_hpe-automated:
+      conditions:
+        vendor: hpe
+        snmp_ver: 3
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_aes]
+        module: [system, ip_mib, h3c]
+      device_type: network
+      vendor: hpe
+      ip_field: main_ip
+
+    snmpv2_network_cisco-automated:
+      conditions:
+        vendor: cisco
+        snmp_ver: 2
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v2_network_auth]
+        module: [system, ip_mib, cisco_device]
+      device_type: network
+      vendor: cisco
+      ip_field: main_ip
+
+    snmpv3_network_cisco-automated:
+      conditions:
+        vendor: cisco
+        snmp_ver: 3
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_aes]
+        module: [system, ip_mib, cisco_device]
+      device_type: network
+      vendor: cisco
+      ip_field: main_ip
+
+    snmpv2_network_snr-automated:
+      conditions:
+        vendor: snr
+        snmp_ver: 2
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v2_network_auth]
+        module: [system, ip_mib, snr_switch]
+      device_type: network
+      vendor: snr
+      ip_field: main_ip
+
+    snmpv3_network_snr_aes-automated:
+      conditions:
+        vendor: snr
+        snmp_ver: 3
+        snmp_cipher: aes
+        virtual: false
+        role: [switch, router]
+        model: any_except
+        model_exclude: [S215Gi-8T-POE]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_aes]
+        module: [system, ip_mib, snr_switch]
+      device_type: network
+      vendor: snr
+      ip_field: main_ip
+
+    snmpv3_network_snr_des-automated:
+      conditions:
+        vendor: snr
+        snmp_ver: 3
+        snmp_cipher: des
+        virtual: false
+        role: [switch, router]
+        model: any_except
+        model_exclude: [S215Gi-8T-POE]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_des]
+        module: [system, ip_mib, snr_switch]
+      device_type: network
+      vendor: snr
+      ip_field: main_ip
+
+    snmpv3_network_snr215_des-automated:
+      conditions:
+        vendor: snr
+        snmp_ver: 3
+        snmp_cipher: des
+        virtual: false
+        role: [switch, router]
+        model: [S215Gi-8T-POE]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_des]
+        module: [snr215]
+      device_type: network
+      vendor: snr
+      ip_field: main_ip
+
+    snmpv2_network_unknown-automated:
+      conditions:
+        vendor: any_except
+        vendor_exclude: [snr, hpe, cisco, huawei, tfortis]
+        snmp_ver: 2
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v2_network_auth]
+        module: [system, ip_mib]
+      device_type: network
+      ip_field: main_ip
+
+    snmpv3_network_tfortis_automated:
+      conditions:
+        vendor: tfortis
+        snmp_ver: 3
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_md5]
+        module: [tfortis]
+      device_type: network
+      ip_field: main_ip
+
+    snmpv2_network_dlink-automated:
+      conditions:
+        vendor: dlink
+        snmp_ver: 2
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v2_network_auth]
+        module: [system_dlink]
+      device_type: network
+      ip_field: main_ip
+
+    snmpv3_network_dlink_des-automated:
+      conditions:
+        vendor: dlink
+        snmp_ver: 3
+        snmp_cipher: des
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_des]
+        module: [system_dlink]
+      device_type: network
+      ip_field: main_ip
+
+    snmpv3_network_mikrotik_aes_automated:
+      conditions:
+        vendor: mikrotik
+        snmp_ver: 3
+        snmp_cipher: aes
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_aes]
+        module: [system, ip_mib, mikrotik]
+      device_type: network
+      ip_field: main_ip
+
+    snmpv3_network_unknown_aes_automated:
+      conditions:
+        vendor: any_except
+        vendor_exclude: [snr, hpe, cisco, huawei, tfortis, dlink, mikrotik]
+        snmp_ver: 3
+        snmp_cipher: aes
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_aes]
+        module: [system, ip_mib]
+      device_type: network
+      ip_field: main_ip
+
+    snmpv3_network_unknown_des_automated:
+      conditions:
+        vendor: any_except
+        vendor_exclude: [snr, hpe, cisco, huawei, tfortis, dlink, mikrotik]
+        snmp_ver: 3
+        snmp_cipher: des
+        virtual: false
+        role: [switch, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_network_auth_des]
+        module: [system, ip_mib]
+      device_type: network
+      ip_field: main_ip
+
+    # ---- Storage ----
+    snmpv3_synology_aes_automated:
+      conditions:
+        vendor: synology
+        snmp_ver: 3
+        snmp_cipher: aes
+        virtual: false
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v3_ipmi_auth]
+        module: [system, ip_mib, synology]
+      device_type: storage
+      vendor: synology
+      ip_field: main_ip
+
+    # ---- UPS ----
+    snmpv1_ups_eaton-automated:
+      conditions:
+        vendor: eaton
+        snmp_ver: 1
+        virtual: false
+        role: ups
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v1_ups_auth]
+        module: [system, ip_mib, udp_mib, ups_mib]
+      device_type: ups
+      ip_field: main_ip
+
+    snmpv1_ups_ippon-automated:
+      conditions:
+        vendor: ippon
+        snmp_ver: 1
+        virtual: false
+        role: ups
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v1_ups_auth]
+        module: [ippon]
+      device_type: ups
+      ip_field: main_ip
+
+    snmpv1_ups_delta-automated:
+      conditions:
+        vendor: delta
+        snmp_ver: 1
+        virtual: false
+        role: ups
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v1_ups_auth]
+        module: [system, ip_mib, udp_mib, ups_mib]
+      device_type: ups
+      ip_field: main_ip
+
+    snmpv1_ups_other-automated:
+      conditions:
+        vendor: any_except
+        vendor_exclude: [eaton, ippon, delta]
+        snmp_ver: 1
+        virtual: false
+        role: ups
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v1_ups_auth]
+        module: [system, ip_mib, udp_mib, ups_mib]
+      device_type: ups
+      ip_field: main_ip
+
+    # ---- Other ----
+    snmpv1_other_netping-automated:
+      conditions:
+        vendor: netping
+        oob_ip: null
+        snmp_ver: 1
+        role: any_except
+        role_exclude: [switch, ups, router]
+      scrape_interval: 4m
+      scrape_timeout: 2m
+      params:
+        auth: [public_v1_ups_auth]
+        module: [netping]
+      ip_field: main_ip
+
+# ---------------------------------------------------------------------------
+# Alloy / Blackbox targets generator
+# ---------------------------------------------------------------------------
+alloy:
+  targets_file: /etc/alloy/blackbox_targets.json
+
+  # Labels applied to every target unless overridden per group.
+  # Set a label to null in a group to remove it for that group.
+  default_labels:
+    __param_module: icmp
+    environment: prod
+    request: icmp
+    criticality: "{criticality}"
+    name: "{name}"
+
+  groups:
+    # ---- Management devices (exclusive: skip remaining rules) ----
+    management_icmp:
+      exclusive: true
+      conditions:
+        tags_contains: [management]
+        main_ip: not_null
+      target_field: main_ip
+      labels:
+        device: management
+
+    # ---- Linux / Windows servers with Alloy agent ----
+    linux_windows_icmp:
+      conditions:
+        vendor: not_in
+        vendor_exclude: [synology]
+        main_ip: not_null
+        os_type: not_null
+        role: not_in
+        role_exclude: [switch, ups, router]
+      target_field: main_ip
+      labels:
+        os: "{os_type}"
+        alloy: "true"
+        node_ip: "{target_ip}"
+        device: "{device_label}"
+
+    # ---- Devices without Alloy agent ----
+    icmp_no_alloy:
+      conditions:
+        vendor: not_in
+        vendor_exclude: [synology]
+        main_ip: not_null
+        model: not_in
+        model_exclude: [generic-ws]
+        os_type: null
+        role: not_in
+        role_exclude: [locker, switch, ups, router, control_cpu, pps, ip-video, terminal, sound, video-transmission, wi-fi]
+      target_field: main_ip
+      labels:
+        alloy: "false"
+        node_ip: "{target_ip}"
+        device: "{device_label}"
+
+    # ---- IPMI / KVM (OOB IP) ----
+    ipmi_kvm:
+      conditions:
+        virtual: false
+        snmp_ver: 0
+        oob_ip: not_null
+      target_field: oob_ip
+      name_suffix: "-kvm"
+      labels:
+        alloy: "false"
+        node_ip: "{target_ip}"
+        device: kvm
+
+    # ---- Network switches/routers with SNMP ----
+    switch_snmp:
+      conditions:
+        virtual: false
+        main_ip: not_null
+        snmp_ver: any_except
+        snmp_ver_exclude: [0]
+        role: [switch, router]
+      target_field: main_ip
+      labels:
+        snmp: "true"
+        node_ip: "{target_ip}"
+        device: switch
+
+    # ---- Network switches/routers without SNMP ----
+    switch_no_snmp:
+      conditions:
+        virtual: false
+        main_ip: not_null
+        snmp_ver: 0
+        role: [switch, router]
+      target_field: main_ip
+      labels:
+        snmp: "false"
+        node_ip: "{target_ip}"
+        device: switch
+
+    # ---- UPS with SNMP ----
+    ups_snmp:
+      conditions:
+        virtual: false
+        main_ip: not_null
+        snmp_ver: any_except
+        snmp_ver_exclude: [0]
+        role: ups
+      target_field: main_ip
+      labels:
+        snmp: "true"
+        node_ip: "{target_ip}"
+        device: ups
+
+    # ---- UPS without SNMP ----
+    ups_no_snmp:
+      conditions:
+        virtual: false
+        main_ip: not_null
+        snmp_ver: 0
+        role: ups
+      target_field: main_ip
+      labels:
+        snmp: "false"
+        node_ip: "{target_ip}"
+        device: ups
+
+    # ---- Other equipment ----
+    other_equipment_icmp:
+      conditions:
+        vendor: not_in
+        vendor_exclude: [synology]
+        main_ip: not_null
+        os_type: null
+        role: [pps, ip-video, terminal, video-transmission, sound, locker]
+      target_field: main_ip
+      labels:
+        alloy: "false"
+        node_ip: "{target_ip}"
+        device: other
+
+    # ---- Workstations ----
+    workstations_icmp:
+      conditions:
+        model: [generic-ws]
+        main_ip: not_null
+      target_field: main_ip
+      labels:
+        alloy: "false"
+        node_ip: "{target_ip}"
+        device: other
+
+    # ---- Wi-Fi access points ----
+    wifi_icmp:
+      conditions:
+        virtual: false
+        main_ip: not_null
+        role: [wi-fi]
+      target_field: main_ip
+      labels:
+        alloy: "false"
+        node_ip: "{target_ip}"
+        device: wi-fi
+
+# ---------------------------------------------------------------------------
+# Syslog-ng rewrite-rules generator
+# ---------------------------------------------------------------------------
+syslog:
+  config_file: /etc/syslog-ng/conf.d/netbox2prom.conf
+  block_name: fix_hostnames
+
+  # Epilogue appended after all group rules inside the rewrite block.
+  # Use double braces for literal syslog-ng variables: ${{HOST}} -> ${HOST}
+  epilogue_template: |-
+        set("${{SOURCEIP}}", value("HOST")
+            condition("${{HOST}}" eq ""));
+
+  groups:
+    # Rewrite PROGRAM field for switches that send malformed hostnames.
+    huawei_hpe_switches:
+      conditions:
+        role: switch
+        vendor: [huawei, hpe]
+        snmp_ver: any_except
+        snmp_ver_exclude: [0]
+      host_field: main_ip
+      template: |-
+            set("{name}", value("PROGRAM") \
+                condition("${{HOST}}" eq "{ip}"));
