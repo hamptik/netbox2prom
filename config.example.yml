@@ -463,6 +463,8 @@ prometheus:
 # ---------------------------------------------------------------------------
 alloy:
   targets_file: /etc/alloy/blackbox_targets.json
+  reload_address: "http://alloy:12345"
+  # reload_address: ""    # leave empty to skip reload
 
   # Labels applied to every target unless overridden per group.
   # Set a label to null in a group to remove it for that group.

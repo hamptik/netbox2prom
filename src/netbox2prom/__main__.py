@@ -7,7 +7,7 @@ import time
 from .config import load_config
 from .log import setup_logging
 from .netbox_client import NetBoxClient
-from .generators.alloy import generate_alloy_targets
+from .generators.alloy import generate_alloy_targets, reload_alloy
 from .generators.prometheus import generate_prometheus_configs, reload_prometheus
 from .generators.syslog import generate_syslog_config, reload_syslog
 
@@ -28,6 +28,7 @@ def run_once(config) -> None:
     if "alloy" in enabled:
         logger.info("=== Alloy generator ===")
         generate_alloy_targets(devices, config.alloy)
+        reload_alloy(config.alloy)
 
     if "syslog" in enabled:
         logger.info("=== Syslog generator ===")

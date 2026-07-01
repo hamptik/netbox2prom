@@ -4,6 +4,8 @@ import json
 import logging
 import os
 
+import requests
+
 from ..conditions import match_conditions
 from ..models import Device
 
@@ -59,3 +61,18 @@ def generate_alloy_targets(devices: list[Device], alloy_config: dict) -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(blocks, f, indent=4)
     logger.info("Written %d target(s) to %s", len(blocks), output_file)
+
+
+def reload_alloy(alloy_config: dict) -> None:
+    address = alloy_config.get("reload_address")
+    if not address:
+        logger.info("Alloy reload skipped (reload_address not configured)")
+        return
+    try:
+        r = requests.post(f"{address}/-/reload", timeout=10)
+        if r.status_code == 200:
+            logger.info("Alloy config reloaded successfully")
+        else:
+            logger.warning("Failed to reload Alloy (HTTP %d)", r.status_code)
+    except Exception as e:
+        logger.error("Could not reload Alloy: %s", e)

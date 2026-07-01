@@ -16,6 +16,7 @@ This guide covers how to configure the monitoring receivers — **Prometheus**, 
   - [Output file structure](#output-file-structure-1)
   - [Alloy configuration](#alloy-configuration)
   - [Blackbox module file](#blackbox-module-file)
+  - [Hot-reload](#hot-reload-1)
   - [Docker volumes](#docker-volumes-1)
 - [3. syslog-ng (Hostname Rewrites)](#3-syslog-ng-hostname-rewrites)
   - [How it works](#how-it-works)
@@ -344,6 +345,43 @@ modules:
 ```
 
 > The module name (`icmp`) must match the `__param_module` label value in the generated targets.
+
+### Hot-reload
+
+`netbox2prom` can trigger an Alloy config reload after writing the targets file. Configure the reload endpoint:
+
+```yaml
+alloy:
+  reload_address: "http://alloy:12345"
+```
+
+The service sends `POST http://alloy:12345/-/reload` after each generation cycle.
+
+**Requirements:**
+
+- Alloy's HTTP server must be listening (enabled by default on port `12345`):
+  ```bash
+  alloy run --server.http.listen-addr=0.0.0.0:12345 config.alloy
+  ```
+- Or in Docker:
+  ```yaml
+  services:
+    alloy:
+      image: grafana/alloy:latest
+      command:
+        - run
+        - --server.http.listen-addr=0.0.0.0:12345
+        - /etc/alloy/config.alloy
+      ports:
+        - "12345:12345"
+  ```
+
+To disable reload (e.g., when relying on `discovery.file`'s `refresh_interval` to pick up changes), leave `reload_address` empty:
+
+```yaml
+alloy:
+  reload_address: ""
+```
 
 ### Docker volumes
 
