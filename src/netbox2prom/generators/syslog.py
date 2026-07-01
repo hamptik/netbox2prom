@@ -63,7 +63,7 @@ def generate_syslog_config(devices: list[Device], syslog_config: dict) -> bool:
         with open(config_file, "r", encoding="utf-8") as f:
             existing = f.read()
         if existing == content:
-            logger.debug("Syslog config unchanged, skipping write")
+            logger.info("Syslog config unchanged, skipping write")
             return False
     except FileNotFoundError:
         existing = None
@@ -120,7 +120,7 @@ def reload_syslog(syslog_config: dict) -> None:
 
     status = _run_ctl(status_cmd, log_errors=False)
     if status is not None and "running" in status.lower():
-        logger.debug("syslog-ng health check: running")
+        logger.info("syslog-ng health check: running")
         _remove_safely(config_file + ".bak")
     else:
         logger.critical("syslog-ng is NOT running after reload, attempting rollback...")
@@ -192,7 +192,7 @@ def _check_syntax(filepath: str) -> tuple[bool, str]:
             timeout=15,
         )
         if result.returncode == 0:
-            logger.debug("syslog-ng syntax check passed")
+            logger.info("syslog-ng syntax check passed")
             return True, ""
         msg = result.stderr.strip() or result.stdout.strip()
         return False, msg
@@ -236,7 +236,7 @@ def _rollback(config_file: str, reload_cmd: list[str]) -> None:
 def _remove_safely(filepath: str) -> None:
     try:
         os.remove(filepath)
-        logger.debug("Removed %s", filepath)
+        logger.info("Removed %s", filepath)
     except FileNotFoundError:
         pass
     except OSError as e:
