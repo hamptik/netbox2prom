@@ -72,7 +72,7 @@ def reload_prometheus(prometheus_config: dict) -> None:
         logger.info("Prometheus reload skipped (reload_address not configured)")
         return
     try:
-        r = requests.post(f"{address}/-/reload", timeout=10)
+        r = requests.post(f"{address}/-/reload", timeout=30)
         if r.status_code == 200:
             logger.info("Prometheus config reloaded successfully")
         else:

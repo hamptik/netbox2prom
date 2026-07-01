@@ -69,7 +69,7 @@ def reload_alloy(alloy_config: dict) -> None:
         logger.info("Alloy reload skipped (reload_address not configured)")
         return
     try:
-        r = requests.post(f"{address}/-/reload", timeout=10)
+        r = requests.post(f"{address}/-/reload", timeout=30)
         if r.status_code == 200:
             logger.info("Alloy config reloaded successfully")
         else:
