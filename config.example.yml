@@ -675,6 +675,36 @@ probe_http:
     #     device: api
 
 # ---------------------------------------------------------------------------
+# probe_tcp — Blackbox TCP port targets generator
+# ---------------------------------------------------------------------------
+# Generates a JSON file with TCP port probe targets for Grafana Alloy's
+# blackbox exporter. Uses IPAM services from NetBox that have the monitoring
+# tag, NO website field (those are handled by probe_http), and at least one
+# IP address associated with the service.
+# Enabled via ENABLE_PROBE_TCP=true.
+probe_tcp:
+  targets_file: /etc/alloy/probe_tcp_targets.json
+  reload_address: "http://alloy:12345"
+  # reload_address: ""    # leave empty to skip reload
+
+  # Labels applied to every target unless overridden per group.
+  # Placeholders: {name}, {ip}, {port}, {protocol}, {service_name},
+  #               {description}, {device_name}
+  default_labels:
+    __param_module: tcp_connect
+    environment: prod
+    request: tcp
+    name: "{name}"
+    service_name: "{service_name}"
+
+  groups:
+    # ---- All TCP services (default catch-all) ----
+    all_tcp:
+      conditions: {}
+      labels:
+        device: service
+
+# ---------------------------------------------------------------------------
 # Syslog-ng rewrite-rules generator
 # ---------------------------------------------------------------------------
 syslog:

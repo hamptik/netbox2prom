@@ -10,6 +10,7 @@ from .netbox_client import NetBoxClient
 from .reload import reload_services
 from .generators.probe_icmp import generate_probe_icmp_targets
 from .generators.probe_http import generate_probe_http_targets
+from .generators.probe_tcp import generate_probe_tcp_targets
 from .generators.prometheus import generate_prometheus_configs
 from .generators.syslog import generate_syslog_config
 
@@ -21,7 +22,7 @@ def run_once(config) -> None:
     client = NetBoxClient(config)
 
     need_devices = bool(enabled & {"prometheus", "probe_icmp", "syslog"})
-    need_services = "probe_http" in enabled
+    need_services = bool(enabled & {"probe_http", "probe_tcp"})
 
     devices = client.get_devices() if need_devices else []
     services = []
@@ -42,6 +43,10 @@ def run_once(config) -> None:
     if "probe_http" in enabled:
         logger.info("=== probe_http generator ===")
         generate_probe_http_targets(services, config.probe_http)
+
+    if "probe_tcp" in enabled:
+        logger.info("=== probe_tcp generator ===")
+        generate_probe_tcp_targets(services, config.probe_tcp)
 
     if "syslog" in enabled:
         logger.info("=== Syslog generator ===")

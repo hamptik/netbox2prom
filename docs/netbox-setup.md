@@ -11,6 +11,7 @@ This guide covers everything you need to configure on the **NetBox side** so tha
 - [3. Config Contexts](#3-config-contexts)
 - [4. Tags](#4-tags)
 - [5. Device Fields Read by the Service](#5-device-fields-read-by-the-service)
+- [5a. Service Fields Read by the Service](#5a-service-fields-read-by-the-service)
 - [6. API Endpoints & Filtering](#6-api-endpoints--filtering)
 
 ---
@@ -38,9 +39,10 @@ The token's user must have **read** access to:
 |---|---|---|
 | DCIM | Device | `view` |
 | Virtualization | Virtual Machine | `view` |
+| IPAM | Service | `view` |
 | Extras | Tag | `view` (inherited by default) |
 
-If you restrict by object-level permissions, ensure the user can see all devices/VMs tagged with your monitoring tag.
+If you restrict by object-level permissions, ensure the user can see all devices/VMs/services tagged with your monitoring tag.
 
 ### Passing the token
 
@@ -104,7 +106,7 @@ A free-form criticality label that is propagated as a Prometheus/Alloy label, us
 
 ### `website` (IPAM Service)
 
-Used by the `probe_http` generator to determine which services to monitor via HTTP blackbox checks. Only services with this field populated are included.
+Used by the `probe_http` generator to determine which services to monitor via HTTP blackbox checks. Only services with this field populated are included in `probe_http`. Services **without** this field are eligible for `probe_tcp` (TCP port checks) if they have a TCP protocol, ports, and IP addresses configured.
 
 | Property | Value |
 |---|---|
@@ -118,6 +120,8 @@ Used by the `probe_http` generator to determine which services to monitor via HT
 > Example values: `https://wiki.example.com`, `https://redmine.example.com/login?back_url=...`
 
 To use a different custom field name, set `website_field` in the `probe_http` config section.
+
+> **probe_http vs probe_tcp:** Services with a populated `website` field are handled by `probe_http` (HTTP checks on the URL). Services without `website` but with protocol `tcp`, ports, and IP addresses are handled by `probe_tcp` (TCP port checks on `ip:port`). This split is automatic — no additional configuration is needed beyond the `monitoring` tag.
 
 ---
 
@@ -170,13 +174,13 @@ Tags control which devices `netbox2prom` processes and enable special routing in
 
 ### `monitoring` tag (required)
 
-This is the primary filter. Only devices with this tag are fetched from NetBox.
+This is the primary filter. Only devices, VMs, and IPAM services with this tag are fetched from NetBox.
 
 | Property | Value |
 |---|---|
 | **Name** | `Monitoring` |
 | **Slug** | `monitoring` |
-| **Object types** | `dcim > device`, `virtualization > virtual machine` |
+| **Object types** | `dcim > device`, `virtualization > virtual machine`, `ipam > service` |
 
 The tag name is configurable:
 
@@ -185,7 +189,7 @@ netbox:
   tag: monitoring   # change to any slug you prefer
 ```
 
-> If `tag` is omitted or empty, **all** devices and VMs are fetched (use with caution on large installations).
+> If `tag` is omitted or empty, **all** devices, VMs, and services are fetched (use with caution on large installations).
 
 ### `management` tag (optional)
 
@@ -234,6 +238,27 @@ Any combination of tags works. A typical server might have `monitoring` + `linux
 
 ---
 
+## 5a. Service Fields Read by the Service
+
+The `probe_http` and `probe_tcp` generators work with **IPAM services**. The service maps the following NetBox API fields to internal `Service` attributes:
+
+| NetBox API field | Internal field | Type | Notes |
+|---|---|---|---|
+| `name` | `name` | string | Service name (e.g., `SSH`, `HTTPS`) |
+| `protocol.value` | `protocol` | string | `tcp` or `udp` |
+| `description` | `description` | string | Service description |
+| `custom_fields.<website_field>` | `website` | string | URL from custom field (default field name: `website`) |
+| `device.name` or `virtual_machine.name` | `device_name` | string | Parent device or VM name |
+| `ports` | `ports` | list[int] | Port numbers (e.g., `[22]`, `[80, 443]`) |
+| `ipaddresses[].address` | `ipaddresses` | list[string] | IPs without CIDR prefix (e.g., `10.15.5.7` from `10.15.5.7/24`) |
+| `tags[].slug` | `tags` | list[string] | Tag slugs |
+
+> **IP address resolution**: The `ipaddresses` list is built from the service's assigned IP addresses. The CIDR prefix (`/24`, `/32`, etc.) is stripped automatically. For `probe_tcp`, the **first** IP in the list is used as the target.
+
+> **Required permissions**: The token's user must have **read** access to `IPAM > Service` (`view`). This is in addition to the DCIM and Virtualization permissions listed in [Section 1](#1-api-token).
+
+---
+
 ## 6. API Endpoints & Filtering
 
 ### Default endpoints
@@ -244,7 +269,7 @@ The service polls three endpoints:
 |---|---|---|
 | `/api/dcim/devices/` | Physical devices | prometheus, probe_icmp, syslog |
 | `/api/virtualization/virtual-machines/` | Virtual machines | prometheus, probe_icmp, syslog |
-| `/api/ipam/services/` | IPAM services | probe_http |
+| `/api/ipam/services/` | IPAM services | probe_http, probe_tcp |
 
 ### Tag filtering
 

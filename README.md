@@ -1,12 +1,13 @@
 # netbox2prom
 
-Generates monitoring configurations from NetBox data. Polls the NetBox API and produces configuration files for Prometheus (SNMP exporter) and Alloy (Blackbox ICMP checks).
+Generates monitoring configurations from NetBox data. Polls the NetBox API and produces configuration files for Prometheus (SNMP exporter) and Alloy (Blackbox ICMP, HTTP, and TCP port checks).
 
 ## Features
 
 - **Prometheus** — generates scrape configs for SNMP exporter (per device group)
 - **probe_icmp** — generates JSON targets for Blackbox ICMP checks (device reachability)
 - **probe_http** — generates JSON targets for Blackbox HTTP checks (website availability from NetBox services)
+- **probe_tcp** — generates JSON targets for Blackbox TCP port checks (service port availability from NetBox services)
 - Each generator can be independently toggled via environment variables
 - Container runs as a long-running poll loop or in single-run mode
 - All rules are declarative in YAML config
@@ -50,6 +51,7 @@ python -m netbox2prom
 | `ENABLE_PROMETHEUS` | Enable Prometheus generator | `true` |
 | `ENABLE_PROBE_ICMP` | Enable probe_icmp generator (ICMP blackbox) | `true` |
 | `ENABLE_PROBE_HTTP` | Enable probe_http generator (HTTP blackbox) | `true` |
+| `ENABLE_PROBE_TCP` | Enable probe_tcp generator (TCP port blackbox) | `true` |
 | `ENABLE_SYSLOG` | Enable syslog-ng generator | `false` |
 | `NETBOX_PAGE_SIZE` | Override NetBox API page size (overrides YAML `netbox.page_size`) | `1000` |
 | `POLL_INTERVAL` | Poll interval in seconds | `300` |

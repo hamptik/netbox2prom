@@ -44,6 +44,11 @@ def reload_services(config, enabled: set[str], syslog_changed: bool) -> None:
         if addr:
             targets.setdefault(addr, []).append("probe_http")
 
+    if "probe_tcp" in enabled:
+        addr = config.probe_tcp.get("reload_address", "")
+        if addr:
+            targets.setdefault(addr, []).append("probe_tcp")
+
     for addr, generators in targets.items():
         label = " + ".join(generators) if len(generators) > 1 else generators[0]
         reload_http(addr, label)

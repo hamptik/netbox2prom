@@ -11,6 +11,7 @@ Complete reference for the `config.yml` file. The full annotated example is in [
 - [prometheus](#prometheus)
 - [probe_icmp](#probe_icmp)
 - [probe_http](#probe_http)
+- [probe_tcp](#probe_tcp)
 - [syslog](#syslog)
 - [Conditions](#conditions)
   - [Exact match](#exact-match)
@@ -29,6 +30,7 @@ Complete reference for the `config.yml` file. The full annotated example is in [
 - [Placeholders](#placeholders)
 - [probe_icmp group options](#probe_icmp-group-options)
 - [probe_http group options](#probe_http-group-options)
+- [probe_tcp group options](#probe_tcp-group-options)
 - [Prometheus group options](#prometheus-group-options)
 - [Syslog group options](#syslog-group-options)
 
@@ -48,6 +50,9 @@ probe_icmp:
 
 probe_http:
   # Blackbox HTTP target generation from NetBox services (enabled via ENABLE_PROBE_HTTP=true)
+
+probe_tcp:
+  # Blackbox TCP port target generation from NetBox services (enabled via ENABLE_PROBE_TCP=true)
 
 syslog:
   # syslog-ng rewrite rule generation (enabled via ENABLE_SYSLOG=true)
@@ -207,7 +212,7 @@ See [Receiver Setup → Alloy HTTP](receivers-setup.md#3-grafana-alloy-blackbox-
 
 ### Service fields for conditions
 
-The `probe_http` generator works with a `Service` model that has different fields than `Device`:
+The `probe_http` and `probe_tcp` generators work with a `Service` model that has different fields than `Device`:
 
 | Field | Source | Type |
 |---|---|---|
@@ -216,7 +221,58 @@ The `probe_http` generator works with a `Service` model that has different field
 | `description` | Service description | string or None |
 | `website` | URL from custom field | string |
 | `device_name` | Parent device/VM name | string or None |
+| `ports` | Port numbers from NetBox | list[int] |
+| `ipaddresses` | IP addresses (without CIDR) | list[string] |
 | `tags` | Tag slugs | list[string] |
+
+---
+
+## probe_tcp
+
+Generates a single JSON file with TCP port targets for Grafana Alloy's blackbox exporter. Targets are derived from **IPAM services** in NetBox that have the monitoring tag, **no** website (those are handled by `probe_http`), protocol `tcp`, at least one port, and at least one IP address.
+
+```yaml
+probe_tcp:
+  targets_file: /etc/alloy/probe_tcp_targets.json
+  default_labels:
+    __param_module: tcp_connect
+    environment: prod
+    request: tcp
+    name: "{name}"
+    service_name: "{service_name}"
+  groups:
+    # ... group definitions
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `targets_file` | string | `/etc/alloy/probe_tcp_targets.json` | Path to the output JSON file |
+| `reload_address` | string | *(empty)* | Alloy URL for `/-/reload` call after generation. Leave empty to skip reload |
+| `default_labels` | dict | `{}` | Labels applied to every target. Overridden by per-group `labels` |
+| `groups` | dict | `{}` | Group definitions (see [probe_tcp group options](#probe_tcp-group-options)) |
+
+**Output behavior:**
+
+- Fetches services from `/api/ipam/services/?tag=<tag>`
+- **Skips** services with a non-empty `website` field (handled by `probe_http`)
+- **Skips** non-TCP services (e.g., UDP — logged at DEBUG level)
+- **Skips** services without IP addresses or ports
+- For each service, the **first** IP from `ipaddresses` is used (CIDR prefix stripped)
+- If a service has multiple ports, a separate target is generated per port
+- Target address format: `<ip>:<port>`
+- A single JSON array of `{ targets, labels }` objects
+- If no `groups` are defined, all services go into a single default group
+- Conditions match against `Service` fields (see [Service fields](#service-fields-for-conditions))
+
+**How `probe_http` and `probe_tcp` split services:**
+
+| Service has `website`? | Generator |
+|---|---|
+| Yes | `probe_http` (HTTP blackbox check on the URL) |
+| No, but has `protocol=tcp` + `ports` + `ipaddresses` | `probe_tcp` (TCP port check on `ip:port`) |
+| No, and missing ports or IP addresses | Skipped |
+
+See [Receiver Setup → Alloy TCP](receivers-setup.md#4-grafana-alloy-blackbox-tcp) for the output file structure and receiver configuration.
 
 ---
 
@@ -254,7 +310,7 @@ syslog:
 - After reload, syslog-ng status is checked. If not running → **rollback** to previous config (`.bak`).
 - If no devices match any group → file is **removed** (if it existed) and syslog-ng is reloaded.
 
-See [Receiver Setup → syslog-ng](receivers-setup.md#3-syslog-ng-hostname-rewrites) for details.
+See [Receiver Setup → syslog-ng](receivers-setup.md#5-syslog-ng-hostname-rewrites) for details.
 
 ---
 
@@ -543,16 +599,19 @@ There is no OR between conditions within a single group. To express OR, create *
 
 ## Placeholders
 
-Placeholders can be used in `default_labels` (prometheus, probe_icmp & probe_http), `labels` (probe_icmp/probe_http groups), and `template` (syslog groups). They are resolved per-device (or per-service for probe_http) at generation time.
+Placeholders can be used in `default_labels` (prometheus, probe_icmp, probe_http & probe_tcp), `labels` (probe_icmp/probe_http/probe_tcp groups), and `template` (syslog groups). They are resolved per-device (or per-service for probe_http/probe_tcp) at generation time.
 
 | Placeholder | Value | Generator | Example |
 |---|---|---|---|
-| `{name}` | Device name with `name_prefix`/`name_suffix` applied (probe_icmp) or resolved service name (probe_http) | all | `srv-web-01` |
+| `{name}` | Device name with `name_prefix`/`name_suffix` applied (probe_icmp) or resolved service name (probe_http/probe_tcp) | all | `srv-web-01` |
 | `{target_ip}` | IP from the `target_field` (probe_icmp) or `ip_field` (Prometheus) | prometheus, probe_icmp | `10.10.10.5` |
 | `{website}` | URL from the service custom field | probe_http | `https://wiki.example.com` |
-| `{description}` | Service description | probe_http | `Wiki` |
-| `{device_name}` | Parent device/VM name of the service | probe_http | `oxt-vs-wiki01` |
-| `{protocol}` | Service protocol (tcp/udp) | probe_http | `tcp` |
+| `{description}` | Service description | probe_http, probe_tcp | `Wiki` |
+| `{device_name}` | Parent device/VM name of the service | probe_http, probe_tcp | `oxt-vs-wiki01` |
+| `{protocol}` | Service protocol (tcp/udp) | probe_http, probe_tcp | `tcp` |
+| `{ip}` | First IP address from the service's `ipaddresses` (without CIDR) | probe_tcp | `10.15.5.7` |
+| `{port}` | Port number (one target per port) | probe_tcp | `22` |
+| `{service_name}` | Service name field from NetBox | probe_http, probe_tcp | `SSH2` |
 | `{device_label}` | `"virtual"` for VMs, `"device"` for physical | prometheus, probe_icmp | `device` |
 | `{criticality}` | Value of `custom_fields.criticality` | prometheus, probe_icmp | `high` |
 | `{os_type}` | Value of `config_context.os` | prometheus, probe_icmp | `linux` |
@@ -696,6 +755,50 @@ probe_http:
         tags_contains: [api]
       labels:
         __param_module: http_2xx_strict
+```
+
+---
+
+## probe_tcp group options
+
+Each group under `probe_tcp.groups` supports the following keys:
+
+```yaml
+probe_tcp:
+  groups:
+    my_group_name:                    # used in logs
+      conditions: { ... }             # matching rules against Service fields
+      exclusive: true                 # skip remaining groups for this service
+      labels:                         # per-group labels (override default_labels)
+        __param_module: tcp_connect
+        device: database
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `conditions` | dict | `{}` | Matching conditions against [Service fields](#service-fields-for-conditions). Empty dict = matches all services |
+| `exclusive` | bool | `false` | If `true`, no subsequent groups are evaluated for this service |
+| `labels` | dict | `{}` | Labels merged on top of `default_labels`. Set to `null` to remove a default label |
+
+> The `probe_tcp` generator does not use `target_field` or `name_field`. The target is always `<ip>:<port>` (from the service's `ipaddresses` and `ports`). The name is derived from `{device_name}:{port}`.
+
+### Example: different modules by tag
+
+```yaml
+probe_tcp:
+  groups:
+    # All TCP services — basic connect check
+    all_tcp:
+      conditions: {}
+      labels:
+        __param_module: tcp_connect
+
+    # Databases — stricter timeout
+    databases:
+      conditions:
+        tags_contains: [database]
+      labels:
+        __param_module: tcp_connect_strict
 ```
 
 ---
