@@ -6,7 +6,8 @@ services:
     environment:
       NETBOX_TOKEN: ${NETBOX_TOKEN}
       ENABLE_PROMETHEUS: "true"
-      ENABLE_ALLOY: "true"
+      ENABLE_PROBE_ICMP: "true"
+      ENABLE_PROBE_HTTP: "true"
       ENABLE_SYSLOG: "false"
       POLL_INTERVAL: "300"
       LOG_LEVEL: "INFO"

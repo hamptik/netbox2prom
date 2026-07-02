@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_ENDPOINTS = {
     "devices": "/api/dcim/devices/",
     "virtual_machines": "/api/virtualization/virtual-machines/",
+    "services": "/api/ipam/services/",
 }
 
 _TRUE_VALUES = {"true", "1", "yes"}
@@ -54,8 +55,12 @@ class Config:
         return self._data.get("prometheus", {})
 
     @property
-    def alloy(self) -> dict[str, Any]:
-        return self._data.get("alloy", {})
+    def probe_icmp(self) -> dict[str, Any]:
+        return self._data.get("probe_icmp") or self._data.get("alloy", {})
+
+    @property
+    def probe_http(self) -> dict[str, Any]:
+        return self._data.get("probe_http", {})
 
     @property
     def syslog(self) -> dict[str, Any]:
@@ -77,7 +82,9 @@ class Config:
     def enabled_generators(self) -> set[str]:
         env_map = {
             "ENABLE_PROMETHEUS": "prometheus",
-            "ENABLE_ALLOY": "alloy",
+            "ENABLE_PROBE_ICMP": "probe_icmp",
+            "ENABLE_ALLOY": "probe_icmp",
+            "ENABLE_PROBE_HTTP": "probe_http",
             "ENABLE_SYSLOG": "syslog",
         }
         enabled: set[str] = set()
@@ -90,7 +97,7 @@ class Config:
             elif val in _FALSE_VALUES:
                 any_set = True
         if not any_set:
-            enabled = {"prometheus", "alloy", "syslog"}
+            enabled = {"prometheus", "probe_icmp", "probe_http", "syslog"}
         return enabled
 
 

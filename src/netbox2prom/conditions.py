@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-from .models import Device
+from typing import Union
+
+from .models import Device, Service
 
 
-def match_conditions(device: Device, conditions: dict) -> bool:
+def match_conditions(obj: Union[Device, Service], conditions: dict) -> bool:
     for key, cond in conditions.items():
         if key.endswith("_exclude"):
             continue
 
         if key == "tags_contains":
             tag_list = cond if isinstance(cond, list) else [cond]
-            if not any(tag in tag_list for tag in device.tags):
+            if not any(tag in tag_list for tag in obj.tags):
                 return False
             continue
 
-        val = getattr(device, key, None)
+        val = getattr(obj, key, None)
         if key == "model" and val:
             val = val.lower()
 

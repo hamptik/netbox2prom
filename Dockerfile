@@ -13,7 +13,8 @@ COPY src/netbox2prom/ /app/netbox2prom/
 ENV NETBOX2PROM_CONFIG=/etc/netbox2prom/config.yml \
     POLL_INTERVAL=300 \
     ENABLE_PROMETHEUS=true \
-    ENABLE_ALLOY=true \
+    ENABLE_PROBE_ICMP=true \
+    ENABLE_PROBE_HTTP=true \
     ENABLE_SYSLOG=false \
     LOG_LEVEL=INFO \
     PYTHONPATH=/app \

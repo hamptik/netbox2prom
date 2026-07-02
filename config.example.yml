@@ -459,9 +459,12 @@ prometheus:
       ip_field: main_ip
 
 # ---------------------------------------------------------------------------
-# Alloy / Blackbox targets generator
+# probe_icmp — Blackbox ICMP targets generator
 # ---------------------------------------------------------------------------
-alloy:
+# Generates a JSON file with ICMP probe targets for Grafana Alloy's blackbox
+# exporter. Polls devices/VMs from NetBox and groups them by conditions.
+# Enabled via ENABLE_PROBE_ICMP=true.
+probe_icmp:
   targets_file: /etc/alloy/blackbox_targets.json
   reload_address: "http://alloy:12345"
   # reload_address: ""    # leave empty to skip reload
@@ -622,6 +625,52 @@ alloy:
         alloy: "false"
         node_ip: "{target_ip}"
         device: wi-fi
+
+# ---------------------------------------------------------------------------
+# probe_http — Blackbox HTTP targets generator
+# ---------------------------------------------------------------------------
+# Generates a JSON file with HTTP probe targets for Grafana Alloy's blackbox
+# exporter. Polls IPAM services from NetBox that have the monitoring tag and
+# a URL in the custom field (default: "website").
+# Enabled via ENABLE_PROBE_HTTP=true.
+probe_http:
+  targets_file: /etc/alloy/probe_http_targets.json
+  reload_address: "http://alloy:12345"
+  # reload_address: ""    # leave empty to skip reload
+
+  # Name of the custom field on IPAM services that holds the URL.
+  website_field: website
+
+  # How to derive the target name label:
+  #   hostname     — hostname extracted from URL (e.g. wiki.ohta.tech)
+  #   description  — service description field
+  #   name         — service name field (e.g. "HTTPS")
+  #   device_name  — parent device/VM name
+  name_field: hostname
+
+  # Labels applied to every target unless overridden per group.
+  # Placeholders: {name}, {website}, {description}, {device_name}, {protocol}
+  default_labels:
+    __param_module: http_2xx
+    environment: prod
+    request: http
+    name: "{name}"
+    service_name: "{name}"
+
+  groups:
+    # ---- All websites (default catch-all) ----
+    all_websites:
+      conditions: {}
+      labels:
+        device: web
+
+    # ---- Example: APIs with stricter checks ----
+    # api_endpoints:
+    #   conditions:
+    #     tags_contains: [api]
+    #   labels:
+    #     __param_module: http_2xx_strict
+    #     device: api
 
 # ---------------------------------------------------------------------------
 # Syslog-ng rewrite-rules generator

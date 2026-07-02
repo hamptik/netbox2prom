@@ -5,7 +5,7 @@ import logging
 import requests
 
 from .config import Config
-from .models import Device
+from .models import Device, Service
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +54,19 @@ class NetBoxClient:
             len(raw_virtual),
         )
         return [Device.from_netbox(d) for d in raw_physical + raw_virtual]
+
+    def get_services(self, website_field: str = "website") -> list[Service]:
+        params = {"tag": self._tag} if self._tag else None
+        raw_services = self._fetch_all(self._endpoints["services"], params)
+        services = [
+            Service.from_netbox(s, website_field=website_field)
+            for s in raw_services
+        ]
+        services = [s for s in services if s.website]
+        logger.info(
+            "Fetched %d services (%d with %s field)",
+            len(raw_services),
+            len(services),
+            website_field,
+        )
+        return services
