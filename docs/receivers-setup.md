@@ -428,8 +428,8 @@ The output is a JSON array of `{ targets, labels }` objects — same format as I
             "__param_module": "http_2xx",
             "environment": "prod",
             "request": "http",
-            "service_name": "wiki.example.com",
             "name": "wiki.example.com",
+            "service_name": "wiki.example.com",
             "device": "web"
         }
     }

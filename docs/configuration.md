@@ -180,6 +180,7 @@ probe_http:
     __param_module: http_2xx
     environment: prod
     request: http
+    name: "{name}"
     service_name: "{name}"
   groups:
     # ... group definitions
