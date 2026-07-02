@@ -644,7 +644,7 @@ probe_http:
   website_field: website
 
   # How to derive the target name label:
-  #   hostname     — hostname extracted from URL (e.g. wiki.ohta.tech)
+  #   hostname     — hostname extracted from URL (e.g. wiki.example.com)
   #   description  — service description field
   #   name         — service name field (e.g. "HTTPS")
   #   device_name  — parent device/VM name

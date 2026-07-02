@@ -24,11 +24,13 @@ class Config:
 
     @property
     def netbox(self) -> dict[str, Any]:
-        return self._data.get("netbox", {})
+        result: dict[str, Any] = self._data.get("netbox", {})
+        return result
 
     @property
     def netbox_url(self) -> str:
-        return self.netbox.get("url", "")
+        url: str = self.netbox.get("url", "")
+        return url
 
     @property
     def netbox_token(self) -> str:
@@ -39,12 +41,14 @@ class Config:
 
     @property
     def netbox_tag(self) -> str:
-        return self.netbox.get("tag", "monitoring")
+        tag: str = self.netbox.get("tag", "monitoring")
+        return tag
 
     @property
     def netbox_endpoints(self) -> dict[str, str]:
-        endpoints = self.netbox.get("endpoints", {})
-        return {**_DEFAULT_ENDPOINTS, **endpoints}
+        endpoints: dict[str, Any] = self.netbox.get("endpoints", {})
+        merged: dict[str, str] = {**_DEFAULT_ENDPOINTS, **endpoints}
+        return merged
 
     @property
     def netbox_timeout(self) -> int:
@@ -62,19 +66,23 @@ class Config:
 
     @property
     def prometheus(self) -> dict[str, Any]:
-        return self._data.get("prometheus", {})
+        result: dict[str, Any] = self._data.get("prometheus", {})
+        return result
 
     @property
     def probe_icmp(self) -> dict[str, Any]:
-        return self._data.get("probe_icmp") or self._data.get("alloy", {})
+        result: dict[str, Any] = self._data.get("probe_icmp") or self._data.get("alloy", {})
+        return result
 
     @property
     def probe_http(self) -> dict[str, Any]:
-        return self._data.get("probe_http", {})
+        result: dict[str, Any] = self._data.get("probe_http", {})
+        return result
 
     @property
     def syslog(self) -> dict[str, Any]:
-        return self._data.get("syslog", {})
+        result: dict[str, Any] = self._data.get("syslog", {})
+        return result
 
     @property
     def log_level(self) -> str:
@@ -114,7 +122,7 @@ class Config:
 def load_config() -> Config:
     config_path = os.getenv("NETBOX2PROM_CONFIG", "/etc/netbox2prom/config.yml")
     logger.info("Loading configuration from %s", config_path)
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Invalid configuration file: {config_path}")

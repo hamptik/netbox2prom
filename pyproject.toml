@@ -1,0 +1,57 @@
+[project]
+name = "netbox2prom"
+version = "2.0.0"
+description = "Polls NetBox API and generates monitoring configs for Prometheus, Grafana Alloy, and syslog-ng"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra -q"
+
+[tool.coverage.run]
+source = ["netbox2prom"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "RET",  # flake8-return
+    "S",    # bandit (security)
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "S104",   # possible binding to all interfaces
+    "S108",   # probable insecure usage of temp file
+    "S603",   # subprocess calls (syslog-ng management is intentional)
+    "S607",   # partial executable path (syslog-ng binary lookup via shutil.which)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105"]   # asserts and test tokens allowed in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["netbox2prom"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true

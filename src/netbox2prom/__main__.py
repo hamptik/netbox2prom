@@ -3,20 +3,24 @@ from __future__ import annotations
 import logging
 import sys
 import time
+from typing import TYPE_CHECKING
 
 from .config import load_config
+from .generators.probe_http import generate_probe_http_targets
+from .generators.probe_icmp import generate_probe_icmp_targets
+from .generators.prometheus import generate_prometheus_configs
+from .generators.syslog import generate_syslog_config
 from .log import setup_logging
 from .netbox_client import NetBoxClient
 from .reload import reload_services
-from .generators.probe_icmp import generate_probe_icmp_targets
-from .generators.probe_http import generate_probe_http_targets
-from .generators.prometheus import generate_prometheus_configs
-from .generators.syslog import generate_syslog_config
+
+if TYPE_CHECKING:
+    from .config import Config
 
 logger = logging.getLogger(__name__)
 
 
-def run_once(config) -> None:
+def run_once(config: Config) -> None:
     enabled = config.enabled_generators
     client = NetBoxClient(config)
 

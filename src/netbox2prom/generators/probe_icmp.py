@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from typing import Any
 
 from ..conditions import match_conditions
 from ..models import Device
@@ -10,12 +11,12 @@ from ..models import Device
 logger = logging.getLogger(__name__)
 
 
-def generate_probe_icmp_targets(devices: list[Device], config: dict) -> None:
+def generate_probe_icmp_targets(devices: list[Device], config: dict[str, Any]) -> None:
     groups = config.get("groups", {})
     default_labels = config.get("default_labels", {})
     output_file = config.get("targets_file", "/etc/alloy/blackbox_targets.json")
 
-    blocks: list[dict] = []
+    blocks: list[dict[str, Any]] = []
 
     for dev in devices:
         skip_remaining = False
@@ -46,11 +47,15 @@ def generate_probe_icmp_targets(devices: list[Device], config: dict) -> None:
                 for k, v in labels.items()
             }
 
-            blocks.append({
-                "targets": [target_ip],
-                "labels": resolved_labels,
-            })
-            logger.debug("probe_icmp [%s]: Added %s with IP %s", group_name, effective_name, target_ip)
+            blocks.append(
+                {
+                    "targets": [target_ip],
+                    "labels": resolved_labels,
+                }
+            )
+            logger.debug(
+                "probe_icmp [%s]: Added %s with IP %s", group_name, effective_name, target_ip
+            )
 
             if gcfg.get("exclusive", False):
                 skip_remaining = True

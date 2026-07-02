@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from typing import Any
 
 from ..conditions import match_conditions
 from ..models import Device
@@ -18,7 +19,7 @@ _HEADER = (
 )
 
 
-def generate_syslog_config(devices: list[Device], syslog_config: dict) -> bool:
+def generate_syslog_config(devices: list[Device], syslog_config: dict[str, Any]) -> bool:
     config_file = syslog_config.get("config_file")
     block_name = syslog_config.get("block_name", "fix_hostnames")
     groups = syslog_config.get("groups", {})
@@ -60,7 +61,7 @@ def generate_syslog_config(devices: list[Device], syslog_config: dict) -> bool:
         return False
 
     try:
-        with open(config_file, "r", encoding="utf-8") as f:
+        with open(config_file, encoding="utf-8") as f:
             existing = f.read()
         if existing == content:
             logger.info("Syslog config unchanged, skipping write")
@@ -97,7 +98,7 @@ def generate_syslog_config(devices: list[Device], syslog_config: dict) -> bool:
     return True
 
 
-def reload_syslog(syslog_config: dict) -> None:
+def reload_syslog(syslog_config: dict[str, Any]) -> None:
     control_socket = syslog_config.get("control_socket", "/var/lib/syslog-ng/syslog-ng.ctl")
     config_file = syslog_config.get("config_file", "")
     health_check_delay = int(syslog_config.get("health_check_delay", 3))

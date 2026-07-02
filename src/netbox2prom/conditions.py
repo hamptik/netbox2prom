@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Union
+from typing import Any
 
 from .models import Device, Service
 
 
-def match_conditions(obj: Union[Device, Service], conditions: dict) -> bool:
+def match_conditions(obj: Device | Service, conditions: dict[str, Any]) -> bool:
     for key, cond in conditions.items():
         if key.endswith("_exclude"):
             continue
@@ -55,7 +55,7 @@ def match_conditions(obj: Union[Device, Service], conditions: dict) -> bool:
     return True
 
 
-def _normalize_list(values: list, field_name: str) -> list[str]:
+def _normalize_list(values: list[Any], field_name: str) -> list[str]:
     if field_name == "model":
         return [str(v).lower() for v in values]
     return [str(v) for v in values]

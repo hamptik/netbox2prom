@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 
 @dataclass
 class Device:
-    name: Optional[str] = None
-    main_ip: Optional[str] = None
-    oob_ip: Optional[str] = None
-    os_type: Optional[str] = None
-    vendor: Optional[str] = None
-    model: Optional[str] = None
-    role: Optional[str] = None
+    name: str | None = None
+    main_ip: str | None = None
+    oob_ip: str | None = None
+    os_type: str | None = None
+    vendor: str | None = None
+    model: str | None = None
+    role: str | None = None
     snmp_ver: int = 0
     snmp_cipher: Any = None
     criticality: Any = None
@@ -21,7 +21,7 @@ class Device:
     tags: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_netbox(cls, data: dict) -> Device:
+    def from_netbox(cls, data: dict[str, Any]) -> Device:
         config_context = data.get("config_context") or {}
         device_type = data.get("device_type") or {}
         manufacturer = device_type.get("manufacturer") or {}
@@ -29,10 +29,18 @@ class Device:
         role_obj = data.get("role") or {}
 
         oob_ip_obj = data.get("oob_ip")
-        oob_ip = oob_ip_obj["address"].split("/")[0] if oob_ip_obj and oob_ip_obj.get("address") else None
+        oob_ip = (
+            oob_ip_obj["address"].split("/")[0]
+            if oob_ip_obj and oob_ip_obj.get("address")
+            else None
+        )
 
         primary_ip_obj = data.get("primary_ip4") or data.get("primary_ip") or {}
-        main_ip = primary_ip_obj["address"].split("/")[0] if primary_ip_obj and primary_ip_obj.get("address") else None
+        main_ip = (
+            primary_ip_obj["address"].split("/")[0]
+            if primary_ip_obj and primary_ip_obj.get("address")
+            else None
+        )
 
         type_slug = device_type.get("slug") or ""
         model = type_slug.lower() if type_slug else None
@@ -78,15 +86,15 @@ def _hostname_from_url(url: str) -> str:
 
 @dataclass
 class Service:
-    name: Optional[str] = None
-    protocol: Optional[str] = None
-    description: Optional[str] = None
-    website: Optional[str] = None
-    device_name: Optional[str] = None
+    name: str | None = None
+    protocol: str | None = None
+    description: str | None = None
+    website: str | None = None
+    device_name: str | None = None
     tags: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_netbox(cls, data: dict, website_field: str = "website") -> Service:
+    def from_netbox(cls, data: dict[str, Any], website_field: str = "website") -> Service:
         custom_fields = data.get("custom_fields") or {}
         website = custom_fields.get(website_field)
 

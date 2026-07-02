@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import requests
 
 from .generators.syslog import reload_syslog
+
+if TYPE_CHECKING:
+    from .config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,7 @@ def reload_http(address: str, label: str) -> None:
         logger.error("Could not reload %s: %s", label, e)
 
 
-def reload_services(config, enabled: set[str], syslog_changed: bool) -> None:
+def reload_services(config: Config, enabled: set[str], syslog_changed: bool) -> None:
     """Reload downstream services after all configs are generated.
 
     Each unique reload address is hit only once, so Alloy is not reloaded

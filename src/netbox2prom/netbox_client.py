@@ -24,10 +24,12 @@ class NetBoxClient:
         self._timeout = config.netbox_timeout
         self._page_size = config.netbox_page_size
         self._session = requests.Session()
-        self._session.headers.update({
-            "Authorization": f"Token {self._token}",
-            "Accept": "application/json",
-        })
+        self._session.headers.update(
+            {
+                "Authorization": f"Token {self._token}",
+                "Accept": "application/json",
+            }
+        )
 
     def _fetch_all(
         self, endpoint: str, params: dict[str, Any] | None = None
@@ -51,9 +53,7 @@ class NetBoxClient:
             request_params = dict(base_params)
             request_params["offset"] = offset
             try:
-                resp = self._session.get(
-                    url, params=request_params, timeout=self._timeout
-                )
+                resp = self._session.get(url, params=request_params, timeout=self._timeout)
                 resp.raise_for_status()
             except requests.RequestException as exc:
                 raise NetBoxError(f"Failed to fetch {endpoint}: {exc}") from exc
@@ -91,10 +91,7 @@ class NetBoxClient:
     def get_services(self, website_field: str = "website") -> list[Service]:
         params = {"tag": self._tag} if self._tag else None
         raw_services = self._fetch_all(self._endpoints["services"], params)
-        services = [
-            Service.from_netbox(s, website_field=website_field)
-            for s in raw_services
-        ]
+        services = [Service.from_netbox(s, website_field=website_field) for s in raw_services]
         services = [s for s in services if s.website]
         logger.info(
             "Fetched %d services (%d with %s field)",

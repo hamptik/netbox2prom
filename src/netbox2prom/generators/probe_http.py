@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from typing import Any
 
 from ..conditions import match_conditions
 from ..models import Service
@@ -22,7 +23,7 @@ def _resolve_service_name(svc: Service, name_field: str) -> str:
     return svc.hostname
 
 
-def generate_probe_http_targets(services: list[Service], config: dict) -> None:
+def generate_probe_http_targets(services: list[Service], config: dict[str, Any]) -> None:
     groups = config.get("groups", {})
     default_labels = config.get("default_labels", {})
     output_file = config.get("targets_file", "/etc/alloy/probe_http_targets.json")
@@ -31,7 +32,7 @@ def generate_probe_http_targets(services: list[Service], config: dict) -> None:
         logger.warning("probe_http: unknown name_field '%s', using 'hostname'", name_field)
         name_field = "hostname"
 
-    blocks: list[dict] = []
+    blocks: list[dict[str, Any]] = []
 
     if not groups:
         groups = {"default": {}}
@@ -56,15 +57,14 @@ def generate_probe_http_targets(services: list[Service], config: dict) -> None:
             labels.update(group_labels)
             labels = {k: v for k, v in labels.items() if v is not None}
 
-            resolved_labels = {
-                k: svc.resolve(v, name=effective_name)
-                for k, v in labels.items()
-            }
+            resolved_labels = {k: svc.resolve(v, name=effective_name) for k, v in labels.items()}
 
-            blocks.append({
-                "targets": [svc.website],
-                "labels": resolved_labels,
-            })
+            blocks.append(
+                {
+                    "targets": [svc.website],
+                    "labels": resolved_labels,
+                }
+            )
             logger.debug("probe_http [%s]: Added %s -> %s", group_name, effective_name, svc.website)
 
             if gcfg.get("exclusive", False):

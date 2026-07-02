@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 import yaml
 
@@ -11,7 +12,7 @@ from ..models import Device
 logger = logging.getLogger(__name__)
 
 
-def generate_prometheus_configs(devices: list[Device], prometheus_config: dict) -> None:
+def generate_prometheus_configs(devices: list[Device], prometheus_config: dict[str, Any]) -> None:
     groups = prometheus_config.get("groups", {})
     snmp_exporter_address = prometheus_config.get("snmp_exporter_address", "localhost:9116")
     metrics_path = prometheus_config.get("metrics_path", "/snmp")
@@ -45,10 +46,12 @@ def generate_prometheus_configs(devices: list[Device], prometheus_config: dict) 
             for k, v in default_labels.items():
                 labels[k] = dev.resolve(v, target_ip=target_ip)
 
-            job["static_configs"].append({
-                "targets": [target_ip],
-                "labels": labels,
-            })
+            job["static_configs"].append(
+                {
+                    "targets": [target_ip],
+                    "labels": labels,
+                }
+            )
             logger.debug("Prometheus [%s]: Added %s with IP %s", group_name, dev.name, target_ip)
 
         filename = os.path.join(out_dir, f"{group_name}.yml")
@@ -65,23 +68,29 @@ def generate_prometheus_configs(devices: list[Device], prometheus_config: dict) 
         logger.info("Written %s with %d target(s)", filename, len(job["static_configs"]))
 
 
-def _build_relabel_configs(gcfg: dict, snmp_exporter_address: str) -> list[dict]:
-    relabel_configs = [
+def _build_relabel_configs(
+    gcfg: dict[str, Any], snmp_exporter_address: str
+) -> list[dict[str, Any]]:
+    relabel_configs: list[dict[str, Any]] = [
         {"source_labels": ["__address__"], "target_label": "__param_target", "action": "replace"},
         {"target_label": "__address__", "replacement": snmp_exporter_address, "action": "replace"},
         {"source_labels": ["__param_target"], "target_label": "node_ip", "action": "replace"},
     ]
     if "device_type" in gcfg:
-        relabel_configs.append({
-            "target_label": "device_type",
-            "replacement": gcfg["device_type"],
-            "action": "replace",
-        })
+        relabel_configs.append(
+            {
+                "target_label": "device_type",
+                "replacement": gcfg["device_type"],
+                "action": "replace",
+            }
+        )
     if "vendor" in gcfg:
-        relabel_configs.append({
-            "target_label": "vendor",
-            "replacement": gcfg["vendor"],
-            "action": "replace",
-        })
+        relabel_configs.append(
+            {
+                "target_label": "vendor",
+                "replacement": gcfg["vendor"],
+                "action": "replace",
+            }
+        )
     relabel_configs.extend(gcfg.get("relabel_configs", []))
     return relabel_configs
