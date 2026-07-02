@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 
 @dataclass
@@ -67,4 +68,61 @@ class Device:
             model=self.model or "",
             role=self.role or "",
             snmp_ver=str(self.snmp_ver),
+        )
+
+
+def _hostname_from_url(url: str) -> str:
+    parsed = urlparse(url)
+    return parsed.hostname or url
+
+
+@dataclass
+class Service:
+    name: Optional[str] = None
+    protocol: Optional[str] = None
+    description: Optional[str] = None
+    website: Optional[str] = None
+    device_name: Optional[str] = None
+    tags: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_netbox(cls, data: dict, website_field: str = "website") -> Service:
+        custom_fields = data.get("custom_fields") or {}
+        website = custom_fields.get(website_field)
+
+        protocol_obj = data.get("protocol") or {}
+
+        device_obj = data.get("device")
+        vm_obj = data.get("virtual_machine")
+        device_name = None
+        if device_obj and device_obj.get("name"):
+            device_name = device_obj["name"]
+        elif vm_obj and vm_obj.get("name"):
+            device_name = vm_obj["name"]
+
+        return cls(
+            name=data.get("name"),
+            protocol=protocol_obj.get("value") if isinstance(protocol_obj, dict) else protocol_obj,
+            description=data.get("description") or None,
+            website=website,
+            device_name=device_name,
+            tags=[t.get("slug") for t in data.get("tags", []) if t.get("slug")],
+        )
+
+    @property
+    def hostname(self) -> str:
+        if not self.website:
+            return ""
+        return _hostname_from_url(self.website)
+
+    def resolve(self, template: str, name: str = "") -> str:
+        if "{" not in template:
+            return template
+        return template.format(
+            name=name or self.hostname or self.description or "",
+            website=self.website or "",
+            description=self.description or "",
+            device_name=self.device_name or "",
+            protocol=self.protocol or "",
+            service_name=self.name or "",
         )

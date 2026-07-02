@@ -9,7 +9,8 @@ Complete reference for the `config.yml` file. The full annotated example is in [
 - [File Structure](#file-structure)
 - [netbox](#netbox)
 - [prometheus](#prometheus)
-- [alloy](#alloy)
+- [probe_icmp](#probe_icmp)
+- [probe_http](#probe_http)
 - [syslog](#syslog)
 - [Conditions](#conditions)
   - [Exact match](#exact-match)
@@ -26,7 +27,8 @@ Complete reference for the `config.yml` file. The full annotated example is in [
   - [Combining conditions](#combining-conditions)
   - [Conditions quick reference](#conditions-quick-reference)
 - [Placeholders](#placeholders)
-- [Alloy group options](#alloy-group-options)
+- [probe_icmp group options](#probe_icmp-group-options)
+- [probe_http group options](#probe_http-group-options)
 - [Prometheus group options](#prometheus-group-options)
 - [Syslog group options](#syslog-group-options)
 
@@ -41,8 +43,11 @@ netbox:
 prometheus:
   # SNMP scrape config generation (enabled via ENABLE_PROMETHEUS=true)
 
-alloy:
-  # Blackbox ICMP target generation (enabled via ENABLE_ALLOY=true)
+probe_icmp:
+  # Blackbox ICMP target generation from devices (enabled via ENABLE_PROBE_ICMP=true)
+
+probe_http:
+  # Blackbox HTTP target generation from NetBox services (enabled via ENABLE_PROBE_HTTP=true)
 
 syslog:
   # syslog-ng rewrite rule generation (enabled via ENABLE_SYSLOG=true)
@@ -124,12 +129,12 @@ See [Receiver Setup → Prometheus](receivers-setup.md#1-prometheus-snmp-exporte
 
 ---
 
-## alloy
+## probe_icmp
 
-Generates a single JSON file with ICMP targets for Grafana Alloy's blackbox exporter.
+Generates a single JSON file with ICMP targets for Grafana Alloy's blackbox exporter. Targets are derived from **devices and VMs** in NetBox.
 
 ```yaml
-alloy:
+probe_icmp:
   targets_file: /etc/alloy/blackbox_targets.json
   default_labels:
     __param_module: icmp
@@ -144,8 +149,9 @@ alloy:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `targets_file` | string | `/etc/alloy/blackbox_targets.json` | Path to the output JSON file |
+| `reload_address` | string | *(empty)* | Alloy URL for `/-/reload` call after generation. Leave empty to skip reload |
 | `default_labels` | dict | `{}` | Labels applied to every target. Overridden by per-group `labels` |
-| `groups` | dict | `{}` | Group definitions (see [Alloy group options](#alloy-group-options)) |
+| `groups` | dict | `{}` | Group definitions (see [probe_icmp group options](#probe_icmp-group-options)) |
 
 **Output behavior:**
 
@@ -156,6 +162,60 @@ alloy:
 - Groups are processed in **YAML insertion order** for each device
 
 See [Receiver Setup → Alloy](receivers-setup.md#2-grafana-alloy-blackbox-icmp) for the output file structure and receiver configuration.
+
+> **Backwards compatibility:** The config section name `alloy` is still accepted as an alias for `probe_icmp`. Similarly, `ENABLE_ALLOY=true` maps to the `probe_icmp` generator.
+
+---
+
+## probe_http
+
+Generates a single JSON file with HTTP targets for Grafana Alloy's blackbox exporter. Targets are derived from **IPAM services** in NetBox that have the monitoring tag and a URL in a custom field.
+
+```yaml
+probe_http:
+  targets_file: /etc/alloy/probe_http_targets.json
+  website_field: website
+  name_field: hostname
+  default_labels:
+    __param_module: http_2xx
+    environment: prod
+    request: http
+    service_name: "{name}"
+  groups:
+    # ... group definitions
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `targets_file` | string | `/etc/alloy/probe_http_targets.json` | Path to the output JSON file |
+| `reload_address` | string | *(empty)* | Alloy URL for `/-/reload` call after generation. Leave empty to skip reload |
+| `website_field` | string | `website` | Name of the custom field on IPAM services that holds the URL |
+| `name_field` | string | `hostname` | How to derive the target name: `hostname` (from URL), `description`, `name`, or `device_name` |
+| `default_labels` | dict | `{}` | Labels applied to every target. Overridden by per-group `labels` |
+| `groups` | dict | `{}` | Group definitions (see [probe_http group options](#probe_http-group-options)) |
+
+**Output behavior:**
+
+- Fetches services from `/api/ipam/services/?tag=<tag>`, filters to those with a non-empty `website_field`
+- A single JSON array of `{ targets, labels }` objects
+- Each target's address is the URL from the custom field
+- If no `groups` are defined, all services go into a single default group
+- Conditions match against `Service` fields (see [Service fields](#service-fields-for-conditions))
+
+See [Receiver Setup → Alloy HTTP](receivers-setup.md#3-grafana-alloy-blackbox-http) for the output file structure and receiver configuration.
+
+### Service fields for conditions
+
+The `probe_http` generator works with a `Service` model that has different fields than `Device`:
+
+| Field | Source | Type |
+|---|---|---|
+| `name` | Service name | string |
+| `protocol` | Service protocol (`tcp`, `udp`) | string or None |
+| `description` | Service description | string or None |
+| `website` | URL from custom field | string |
+| `device_name` | Parent device/VM name | string or None |
+| `tags` | Tag slugs | list[string] |
 
 ---
 
@@ -482,22 +542,26 @@ There is no OR between conditions within a single group. To express OR, create *
 
 ## Placeholders
 
-Placeholders can be used in `default_labels` (prometheus & alloy), `labels` (alloy groups), and `template` (syslog groups). They are resolved per-device at generation time.
+Placeholders can be used in `default_labels` (prometheus, probe_icmp & probe_http), `labels` (probe_icmp/probe_http groups), and `template` (syslog groups). They are resolved per-device (or per-service for probe_http) at generation time.
 
-| Placeholder | Value | Example |
-|---|---|---|
-| `{name}` | Device name with `name_prefix`/`name_suffix` applied (Alloy) or raw name (Prometheus) | `srv-web-01` |
-| `{target_ip}` | IP from the `target_field` (Alloy) or `ip_field` (Prometheus) | `10.10.10.5` |
-| `{device_label}` | `"virtual"` for VMs, `"device"` for physical | `device` |
-| `{criticality}` | Value of `custom_fields.criticality` | `high` |
-| `{os_type}` | Value of `config_context.os` | `linux` |
-| `{os}` | Alias for `{os_type}` | `linux` |
-| `{main_ip}` | Primary IP address | `10.10.10.5` |
-| `{oob_ip}` | Out-of-band IP address | `192.168.1.50` |
-| `{vendor}` | Manufacturer slug | `dell` |
-| `{model}` | Device type slug (lowercased) | `poweredge-r650` |
-| `{role}` | Role slug | `server` |
-| `{snmp_ver}` | SNMP version as string | `3` |
+| Placeholder | Value | Generator | Example |
+|---|---|---|---|
+| `{name}` | Device name with `name_prefix`/`name_suffix` applied (probe_icmp) or resolved service name (probe_http) | all | `srv-web-01` |
+| `{target_ip}` | IP from the `target_field` (probe_icmp) or `ip_field` (Prometheus) | prometheus, probe_icmp | `10.10.10.5` |
+| `{website}` | URL from the service custom field | probe_http | `https://wiki.example.com` |
+| `{description}` | Service description | probe_http | `Wiki` |
+| `{device_name}` | Parent device/VM name of the service | probe_http | `oxt-vs-wiki01` |
+| `{protocol}` | Service protocol (tcp/udp) | probe_http | `tcp` |
+| `{device_label}` | `"virtual"` for VMs, `"device"` for physical | prometheus, probe_icmp | `device` |
+| `{criticality}` | Value of `custom_fields.criticality` | prometheus, probe_icmp | `high` |
+| `{os_type}` | Value of `config_context.os` | prometheus, probe_icmp | `linux` |
+| `{os}` | Alias for `{os_type}` | prometheus, probe_icmp | `linux` |
+| `{main_ip}` | Primary IP address | prometheus, probe_icmp | `10.10.10.5` |
+| `{oob_ip}` | Out-of-band IP address | prometheus, probe_icmp | `192.168.1.50` |
+| `{vendor}` | Manufacturer slug | prometheus, probe_icmp | `dell` |
+| `{model}` | Device type slug (lowercased) | prometheus, probe_icmp | `poweredge-r650` |
+| `{role}` | Role slug | prometheus, probe_icmp | `server` |
+| `{snmp_ver}` | SNMP version as string | prometheus, probe_icmp | `3` |
 
 **Empty values:** If a field is `None`, the placeholder resolves to an **empty string** (`""`), not the literal placeholder text. This prevents `{criticality}` from appearing in output labels when the field is unset.
 
@@ -525,12 +589,12 @@ template: |-
 
 ---
 
-## Alloy group options
+## probe_icmp group options
 
-Each group under `alloy.groups` supports the following keys:
+Each group under `probe_icmp.groups` supports the following keys:
 
 ```yaml
-alloy:
+probe_icmp:
   groups:
     my_group_name:                    # becomes the group identifier (used in logs)
       conditions: { ... }             # matching rules (see Conditions)
@@ -583,11 +647,55 @@ Without `exclusive`, a device can appear in multiple groups — which is often d
 
 For each target, labels are resolved in this order (later overrides earlier):
 
-1. `default_labels` from the `alloy` section
+1. `default_labels` from the `probe_icmp` section
 2. `labels` from the matched group
 3. Any label set to `null` in the group's `labels` → **removed** from the final set
 
 Then all label values are resolved through [placeholders](#placeholders).
+
+---
+
+## probe_http group options
+
+Each group under `probe_http.groups` supports the following keys:
+
+```yaml
+probe_http:
+  groups:
+    my_group_name:                    # used in logs
+      conditions: { ... }             # matching rules against Service fields
+      exclusive: true                 # skip remaining groups for this service
+      labels:                         # per-group labels (override default_labels)
+        __param_module: http_2xx_strict
+        device: api
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `conditions` | dict | `{}` | Matching conditions against [Service fields](#service-fields-for-conditions). Empty dict = matches all services |
+| `exclusive` | bool | `false` | If `true`, no subsequent groups are evaluated for this service |
+| `labels` | dict | `{}` | Labels merged on top of `default_labels`. Set to `null` to remove a default label |
+
+> Unlike `probe_icmp`, the `probe_http` generator does not use `target_field` (the target is always the URL from the `website` custom field) or `name_prefix`/`name_suffix` (the name is derived via `name_field`).
+
+### Example: multiple modules by tag
+
+```yaml
+probe_http:
+  groups:
+    # Regular websites — basic 2xx check
+    websites:
+      conditions: {}
+      labels:
+        __param_module: http_2xx
+
+    # APIs with stricter validation
+    api_endpoints:
+      conditions:
+        tags_contains: [api]
+      labels:
+        __param_module: http_2xx_strict
+```
 
 ---
 

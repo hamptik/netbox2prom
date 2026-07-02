@@ -12,10 +12,10 @@ from ..models import Device
 logger = logging.getLogger(__name__)
 
 
-def generate_alloy_targets(devices: list[Device], alloy_config: dict) -> None:
-    groups = alloy_config.get("groups", {})
-    default_labels = alloy_config.get("default_labels", {})
-    output_file = alloy_config.get("targets_file", "/etc/alloy/blackbox_targets.json")
+def generate_probe_icmp_targets(devices: list[Device], config: dict) -> None:
+    groups = config.get("groups", {})
+    default_labels = config.get("default_labels", {})
+    output_file = config.get("targets_file", "/etc/alloy/blackbox_targets.json")
 
     blocks: list[dict] = []
 
@@ -52,7 +52,7 @@ def generate_alloy_targets(devices: list[Device], alloy_config: dict) -> None:
                 "targets": [target_ip],
                 "labels": resolved_labels,
             })
-            logger.debug("Alloy [%s]: Added %s with IP %s", group_name, effective_name, target_ip)
+            logger.debug("probe_icmp [%s]: Added %s with IP %s", group_name, effective_name, target_ip)
 
             if gcfg.get("exclusive", False):
                 skip_remaining = True
@@ -63,16 +63,16 @@ def generate_alloy_targets(devices: list[Device], alloy_config: dict) -> None:
     logger.info("Written %d target(s) to %s", len(blocks), output_file)
 
 
-def reload_alloy(alloy_config: dict) -> None:
-    address = alloy_config.get("reload_address")
+def reload_probe_icmp(config: dict) -> None:
+    address = config.get("reload_address")
     if not address:
-        logger.info("Alloy reload skipped (reload_address not configured)")
+        logger.info("probe_icmp reload skipped (reload_address not configured)")
         return
     try:
         r = requests.post(f"{address}/-/reload", timeout=30)
         if r.status_code == 200:
-            logger.info("Alloy config reloaded successfully")
+            logger.info("probe_icmp config reloaded successfully")
         else:
-            logger.warning("Failed to reload Alloy (HTTP %d)", r.status_code)
+            logger.warning("Failed to reload probe_icmp (HTTP %d)", r.status_code)
     except Exception as e:
-        logger.error("Could not reload Alloy: %s", e)
+        logger.error("Could not reload probe_icmp: %s", e)

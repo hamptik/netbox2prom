@@ -102,6 +102,23 @@ A free-form criticality label that is propagated as a Prometheus/Alloy label, us
 
 > Whatever type you choose, the value is stored as a string and available via the `{criticality}` placeholder.
 
+### `website` (IPAM Service)
+
+Used by the `probe_http` generator to determine which services to monitor via HTTP blackbox checks. Only services with this field populated are included.
+
+| Property | Value |
+|---|---|
+| **Type** | Text |
+| **Object type** | `ipam > service` |
+| **Label** | `Сайт` *(or `Website`)* |
+| **Description** | Full URL for the website (only for web services). Specify the full path |
+| **Validation regex** | `^(https?:\/\/)[a-zA-Z0-9.\-_]+(\/[a-zA-Z0-9.\-_]*)*$` |
+| **Default** | *(none)* |
+
+> Example values: `https://wiki.example.com`, `https://redmine.example.com/login?back_url=...`
+
+To use a different custom field name, set `website_field` in the `probe_http` config section.
+
 ---
 
 ## 3. Config Contexts
@@ -221,23 +238,25 @@ Any combination of tags works. A typical server might have `monitoring` + `linux
 
 ### Default endpoints
 
-The service polls two endpoints:
+The service polls three endpoints:
 
-| Endpoint | Purpose |
-|---|---|
-| `/api/dcim/devices/` | Physical devices |
-| `/api/virtualization/virtual-machines/` | Virtual machines |
+| Endpoint | Purpose | Used by |
+|---|---|---|
+| `/api/dcim/devices/` | Physical devices | prometheus, probe_icmp, syslog |
+| `/api/virtualization/virtual-machines/` | Virtual machines | prometheus, probe_icmp, syslog |
+| `/api/ipam/services/` | IPAM services | probe_http |
 
 ### Tag filtering
 
-Both endpoints are queried with `?tag=<your_tag>`:
+All endpoints are queried with `?tag=<your_tag>`:
 
 ```
 GET /api/dcim/devices/?tag=monitoring
 GET /api/virtualization/virtual-machines/?tag=monitoring
+GET /api/ipam/services/?tag=monitoring
 ```
 
-All matching devices and VMs are combined into a single list and processed by all enabled generators.
+All matching devices, VMs, and services are fetched and processed by the relevant enabled generators.
 
 ### Custom endpoints
 
@@ -249,6 +268,7 @@ netbox:
   endpoints:
     devices: /api/dcim/devices/
     virtual_machines: /api/virtualization/virtual-machines/
+    services: /api/ipam/services/
 ```
 
 ### Timeout
