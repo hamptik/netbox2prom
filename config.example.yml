@@ -12,6 +12,8 @@ netbox:
   url: "https://netbox.example.com"
   tag: monitoring
   timeout: 30
+  # Page size for NetBox API pagination (env NETBOX_PAGE_SIZE overrides this).
+  # page_size: 1000
   # Override API endpoints if your NetBox uses non-standard paths:
   # endpoints:
   #   devices: /api/dcim/devices/
