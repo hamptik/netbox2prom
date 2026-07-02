@@ -4,8 +4,6 @@ import json
 import logging
 import os
 
-import requests
-
 from ..conditions import match_conditions
 from ..models import Service
 
@@ -76,18 +74,3 @@ def generate_probe_http_targets(services: list[Service], config: dict) -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(blocks, f, indent=4)
     logger.info("Written %d target(s) to %s", len(blocks), output_file)
-
-
-def reload_probe_http(config: dict) -> None:
-    address = config.get("reload_address")
-    if not address:
-        logger.info("probe_http reload skipped (reload_address not configured)")
-        return
-    try:
-        r = requests.post(f"{address}/-/reload", timeout=30)
-        if r.status_code == 200:
-            logger.info("probe_http config reloaded successfully")
-        else:
-            logger.warning("Failed to reload probe_http (HTTP %d)", r.status_code)
-    except Exception as e:
-        logger.error("Could not reload probe_http: %s", e)

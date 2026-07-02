@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 
-import requests
 import yaml
 
 from ..conditions import match_conditions
@@ -64,21 +63,6 @@ def generate_prometheus_configs(devices: list[Device], prometheus_config: dict) 
         with open(filename, "w", encoding="utf-8") as f:
             yaml.safe_dump(doc, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
         logger.info("Written %s with %d target(s)", filename, len(job["static_configs"]))
-
-
-def reload_prometheus(prometheus_config: dict) -> None:
-    address = prometheus_config.get("reload_address")
-    if not address:
-        logger.info("Prometheus reload skipped (reload_address not configured)")
-        return
-    try:
-        r = requests.post(f"{address}/-/reload", timeout=30)
-        if r.status_code == 200:
-            logger.info("Prometheus config reloaded successfully")
-        else:
-            logger.warning("Failed to reload Prometheus (HTTP %d)", r.status_code)
-    except Exception as e:
-        logger.error("Could not reload Prometheus: %s", e)
 
 
 def _build_relabel_configs(gcfg: dict, snmp_exporter_address: str) -> list[dict]:

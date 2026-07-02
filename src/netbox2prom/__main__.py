@@ -7,10 +7,11 @@ import time
 from .config import load_config
 from .log import setup_logging
 from .netbox_client import NetBoxClient
-from .generators.probe_icmp import generate_probe_icmp_targets, reload_probe_icmp
-from .generators.probe_http import generate_probe_http_targets, reload_probe_http
-from .generators.prometheus import generate_prometheus_configs, reload_prometheus
-from .generators.syslog import generate_syslog_config, reload_syslog
+from .reload import reload_services
+from .generators.probe_icmp import generate_probe_icmp_targets
+from .generators.probe_http import generate_probe_http_targets
+from .generators.prometheus import generate_prometheus_configs
+from .generators.syslog import generate_syslog_config
 
 logger = logging.getLogger(__name__)
 
@@ -28,26 +29,26 @@ def run_once(config) -> None:
         website_field = config.probe_http.get("website_field", "website")
         services = client.get_services(website_field=website_field)
 
+    syslog_changed = False
+
     if "prometheus" in enabled:
         logger.info("=== Prometheus generator ===")
         generate_prometheus_configs(devices, config.prometheus)
-        reload_prometheus(config.prometheus)
 
     if "probe_icmp" in enabled:
         logger.info("=== probe_icmp generator ===")
         generate_probe_icmp_targets(devices, config.probe_icmp)
-        reload_probe_icmp(config.probe_icmp)
 
     if "probe_http" in enabled:
         logger.info("=== probe_http generator ===")
         generate_probe_http_targets(services, config.probe_http)
-        reload_probe_http(config.probe_http)
 
     if "syslog" in enabled:
         logger.info("=== Syslog generator ===")
-        changed = generate_syslog_config(devices, config.syslog)
-        if changed:
-            reload_syslog(config.syslog)
+        syslog_changed = generate_syslog_config(devices, config.syslog)
+
+    logger.info("=== Reloading services ===")
+    reload_services(config, enabled, syslog_changed)
 
 
 def main() -> None:
