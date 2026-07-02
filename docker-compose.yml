@@ -8,6 +8,7 @@ services:
       ENABLE_PROMETHEUS: "true"
       ENABLE_PROBE_ICMP: "true"
       ENABLE_PROBE_HTTP: "true"
+      ENABLE_PROBE_TCP: "true"
       ENABLE_SYSLOG: "false"
       POLL_INTERVAL: "300"
       LOG_LEVEL: "INFO"
