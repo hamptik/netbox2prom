@@ -95,11 +95,13 @@ class NetBoxClient:
             Service.from_netbox(s, website_field=website_field)
             for s in raw_services
         ]
-        services = [s for s in services if s.website]
+        with_website = sum(1 for s in services if s.website)
+        with_ports = sum(1 for s in services if not s.website and s.ports and s.ipaddresses)
         logger.info(
-            "Fetched %d services (%d with %s field)",
+            "Fetched %d services (%d with %s field, %d TCP/port targets)",
             len(raw_services),
-            len(services),
+            with_website,
             website_field,
+            with_ports,
         )
         return services

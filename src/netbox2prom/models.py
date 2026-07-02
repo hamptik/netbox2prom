@@ -83,6 +83,8 @@ class Service:
     description: Optional[str] = None
     website: Optional[str] = None
     device_name: Optional[str] = None
+    ports: list[int] = field(default_factory=list)
+    ipaddresses: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
 
     @classmethod
@@ -100,12 +102,23 @@ class Service:
         elif vm_obj and vm_obj.get("name"):
             device_name = vm_obj["name"]
 
+        ports = [p for p in data.get("ports", []) if isinstance(p, int)]
+
+        ip_list = data.get("ipaddresses") or []
+        ipaddresses: list[str] = []
+        for ip_obj in ip_list:
+            addr = ip_obj.get("address") if isinstance(ip_obj, dict) else None
+            if addr:
+                ipaddresses.append(addr.split("/")[0])
+
         return cls(
             name=data.get("name"),
             protocol=protocol_obj.get("value") if isinstance(protocol_obj, dict) else protocol_obj,
             description=data.get("description") or None,
             website=website,
             device_name=device_name,
+            ports=ports,
+            ipaddresses=ipaddresses,
             tags=[t.get("slug") for t in data.get("tags", []) if t.get("slug")],
         )
 
@@ -115,7 +128,11 @@ class Service:
             return ""
         return _hostname_from_url(self.website)
 
-    def resolve(self, template: str, name: str = "") -> str:
+    @property
+    def first_ip(self) -> Optional[str]:
+        return self.ipaddresses[0] if self.ipaddresses else None
+
+    def resolve(self, template: str, name: str = "", port: int = 0) -> str:
         if "{" not in template:
             return template
         return template.format(
@@ -124,5 +141,7 @@ class Service:
             description=self.description or "",
             device_name=self.device_name or "",
             protocol=self.protocol or "",
+            port=str(port) if port else "",
+            ip=self.first_ip or "",
             service_name=self.name or "",
         )

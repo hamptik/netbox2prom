@@ -73,6 +73,10 @@ class Config:
         return self._data.get("probe_http", {})
 
     @property
+    def probe_tcp(self) -> dict[str, Any]:
+        return self._data.get("probe_tcp", {})
+
+    @property
     def syslog(self) -> dict[str, Any]:
         return self._data.get("syslog", {})
 
@@ -95,6 +99,7 @@ class Config:
             "ENABLE_PROBE_ICMP": "probe_icmp",
             "ENABLE_ALLOY": "probe_icmp",
             "ENABLE_PROBE_HTTP": "probe_http",
+            "ENABLE_PROBE_TCP": "probe_tcp",
             "ENABLE_SYSLOG": "syslog",
         }
         enabled: set[str] = set()
@@ -107,7 +112,7 @@ class Config:
             elif val in _FALSE_VALUES:
                 any_set = True
         if not any_set:
-            enabled = {"prometheus", "probe_icmp", "probe_http", "syslog"}
+            enabled = {"prometheus", "probe_icmp", "probe_http", "probe_tcp", "syslog"}
         return enabled
 
 
