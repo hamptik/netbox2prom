@@ -51,6 +51,7 @@ python -m netbox2prom
 | `ENABLE_PROBE_ICMP` | Enable probe_icmp generator (ICMP blackbox) | `true` |
 | `ENABLE_PROBE_HTTP` | Enable probe_http generator (HTTP blackbox) | `true` |
 | `ENABLE_SYSLOG` | Enable syslog-ng generator | `false` |
+| `NETBOX_PAGE_SIZE` | Override NetBox API page size (overrides YAML `netbox.page_size`) | `1000` |
 | `POLL_INTERVAL` | Poll interval in seconds | `300` |
 | `RUN_ONCE` | Run once and exit | `false` |
 | `LOG_LEVEL` | Log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |

@@ -51,6 +51,16 @@ class Config:
         return int(self.netbox.get("timeout", 30))
 
     @property
+    def netbox_page_size(self) -> int:
+        raw = os.getenv("NETBOX_PAGE_SIZE")
+        if raw:
+            try:
+                return max(1, int(raw))
+            except ValueError:
+                logger.warning("Invalid NETBOX_PAGE_SIZE=%r, ignoring", raw)
+        return max(1, int(self.netbox.get("page_size", 1000)))
+
+    @property
     def prometheus(self) -> dict[str, Any]:
         return self._data.get("prometheus", {})
 
