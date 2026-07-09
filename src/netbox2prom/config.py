@@ -12,6 +12,7 @@ _DEFAULT_ENDPOINTS = {
     "devices": "/api/dcim/devices/",
     "virtual_machines": "/api/virtualization/virtual-machines/",
     "services": "/api/ipam/services/",
+    "ip_addresses": "/api/ipam/ip-addresses/",
 }
 
 _TRUE_VALUES = {"true", "1", "yes"}
