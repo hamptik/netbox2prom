@@ -166,6 +166,33 @@ probe_icmp:
 - A device can appear in **multiple groups** unless an earlier group sets `exclusive: true`
 - Groups are processed in **YAML insertion order** for each device
 
+### Tagged IP addresses (`ip_group`)
+
+In addition to device-level targets, the `probe_icmp` generator also fetches **individually tagged IP addresses** from `/api/ipam/ip-addresses/?tag=<tag>`. This allows monitoring specific interface IPs independently of the device's `main_ip`/`oob_ip`.
+
+Tagged IPs do **not** pass through the device `groups`. Instead, they go to a single dedicated group configured via `ip_group`:
+
+```yaml
+probe_icmp:
+  ip_group:
+    labels:
+      snmp: "false"
+      node_ip: "{target_ip}"
+      device: ip
+      alloy: "false"
+```
+
+How it works:
+
+1. Each tagged IP is matched to its parent device (by NetBox ID).
+2. If the parent device has the monitoring tag (is in the fetched set), the IP is **enriched** with the device's full attributes (`criticality`, `os_type`, `name`, etc.) — used for label resolution.
+3. The tagged IP is added as an ICMP target with `ip_group.labels` merged on top of `default_labels`.
+4. **Global deduplication**: if a tagged IP already appears as a device target (from any group), it is skipped entirely.
+5. Tagged IPs whose parent device does **not** have the monitoring tag are skipped (cannot be enriched).
+6. If `ip_group` is absent from the config, tagged IPs are not processed.
+
+Example: a server `srv-01` (with monitoring tag, `main_ip=10.0.0.1`) has two additional interface IPs `10.0.0.5` and `10.0.0.6`, both tagged with `monitoring`. All three IPs end up in the ICMP targets file — `10.0.0.1` from the device group, `10.0.0.5` and `10.0.0.6` from `ip_group`.
+
 See [Receiver Setup → Alloy](receivers-setup.md#2-grafana-alloy-blackbox-icmp) for the output file structure and receiver configuration.
 
 > **Backwards compatibility:** The config section name `alloy` is still accepted as an alias for `probe_icmp`. Similarly, `ENABLE_ALLOY=true` maps to the `probe_icmp` generator.

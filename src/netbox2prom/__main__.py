@@ -6,6 +6,7 @@ import time
 
 from .config import load_config
 from .log import setup_logging
+from .models import enrich_ip_address
 from .netbox_client import NetBoxClient
 from .reload import reload_services
 from .generators.probe_icmp import generate_probe_icmp_targets
@@ -38,7 +39,18 @@ def run_once(config) -> None:
 
     if "probe_icmp" in enabled:
         logger.info("=== probe_icmp generator ===")
-        generate_probe_icmp_targets(devices, config.probe_icmp)
+        ip_addresses = client.get_ip_addresses()
+        device_lookup = {dev.id: dev for dev in devices if dev.id is not None}
+        ip_devices: list = []
+        for ip in ip_addresses:
+            enriched = enrich_ip_address(ip, device_lookup)
+            if enriched is not None:
+                ip_devices.append(enriched)
+        logger.info(
+            "Tagged IP addresses: %d total, %d enriched (parent device found)",
+            len(ip_addresses), len(ip_devices),
+        )
+        generate_probe_icmp_targets(devices, ip_devices, config.probe_icmp)
 
     if "probe_http" in enabled:
         logger.info("=== probe_http generator ===")

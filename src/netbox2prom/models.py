@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Optional
 from urllib.parse import urlparse
 
 
 @dataclass
 class Device:
+    id: Optional[int] = None
     name: Optional[str] = None
     main_ip: Optional[str] = None
     oob_ip: Optional[str] = None
@@ -38,6 +39,7 @@ class Device:
         model = type_slug.lower() if type_slug else None
 
         return cls(
+            id=data.get("id"),
             name=data.get("name"),
             main_ip=main_ip,
             oob_ip=oob_ip,
@@ -145,3 +147,63 @@ class Service:
             ip=self.first_ip or "",
             service_name=self.name or "",
         )
+
+
+@dataclass
+class IpAddress:
+    """An IP address from NetBox IPAM (``/api/ipam/ip-addresses/``)."""
+
+    address: str
+    dns_name: str = ""
+    device_id: Optional[int] = None
+    device_name: Optional[str] = None
+    interface_name: Optional[str] = None
+    virtual: bool = False
+    tags: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_netbox(cls, data: dict) -> "IpAddress":
+        raw_addr = data.get("address") or ""
+        address = raw_addr.split("/")[0] if raw_addr else ""
+
+        assigned_type = data.get("assigned_object_type") or ""
+        assigned_obj = data.get("assigned_object") or {}
+
+        device_id: Optional[int] = None
+        device_name: Optional[str] = None
+        interface_name = assigned_obj.get("name")
+        virtual = False
+
+        if "vminterface" in assigned_type:
+            virtual = True
+            vm = assigned_obj.get("virtual_machine") or {}
+            device_id = vm.get("id")
+            device_name = vm.get("name")
+        elif assigned_obj:
+            dev = assigned_obj.get("device") or {}
+            device_id = dev.get("id")
+            device_name = dev.get("name")
+
+        return cls(
+            address=address,
+            dns_name=data.get("dns_name") or "",
+            device_id=device_id,
+            device_name=device_name,
+            interface_name=interface_name,
+            virtual=virtual,
+            tags=[t.get("slug") for t in data.get("tags", []) if t.get("slug")],
+        )
+
+
+def enrich_ip_address(
+    ip: "IpAddress", device_lookup: dict[int, Device]
+) -> Optional[Device]:
+    """Create a Device clone with ``main_ip`` set to the tagged IP address.
+
+    Returns ``None`` when the parent device is not in *device_lookup* (i.e. it
+    does not carry the monitoring tag and was not fetched).
+    """
+    parent = device_lookup.get(ip.device_id) if ip.device_id is not None else None
+    if parent is None:
+        return None
+    return replace(parent, main_ip=ip.address)

@@ -465,6 +465,12 @@ prometheus:
 # ---------------------------------------------------------------------------
 # Generates a JSON file with ICMP probe targets for Grafana Alloy's blackbox
 # exporter. Polls devices/VMs from NetBox and groups them by conditions.
+#
+# Also fetches individually tagged IP addresses (IPAM → IP Addresses with the
+# monitoring tag). Each tagged IP inherits the parent device's attributes and
+# goes to a dedicated **ip_group** (not the device groups above). If a tagged
+# IP duplicates a device target, it is skipped (global dedup by IP).
+#
 # Enabled via ENABLE_PROBE_ICMP=true.
 probe_icmp:
   targets_file: /etc/alloy/blackbox_targets.json
@@ -627,6 +633,17 @@ probe_icmp:
         alloy: "false"
         node_ip: "{target_ip}"
         device: wi-fi
+
+  # ---- Tagged IP addresses (from IPAM → IP Addresses with monitoring tag) ----
+  # All individually tagged IPs go to this single group. They do NOT pass
+  # through the device groups above. Labels are merged on top of
+  # default_labels. If a tagged IP duplicates a device target, it is skipped.
+  ip_group:
+    labels:
+      snmp: "false"
+      node_ip: "{target_ip}"
+      device: ip
+      alloy: "false"
 
 # ---------------------------------------------------------------------------
 # probe_http — Blackbox HTTP targets generator

@@ -40,6 +40,7 @@ The token's user must have **read** access to:
 | DCIM | Device | `view` |
 | Virtualization | Virtual Machine | `view` |
 | IPAM | Service | `view` |
+| IPAM | IP Address | `view` |
 | Extras | Tag | `view` (inherited by default) |
 
 If you restrict by object-level permissions, ensure the user can see all devices/VMs/services tagged with your monitoring tag.
@@ -180,7 +181,7 @@ This is the primary filter. Only devices, VMs, and IPAM services with this tag a
 |---|---|
 | **Name** | `Monitoring` |
 | **Slug** | `monitoring` |
-| **Object types** | `dcim > device`, `virtualization > virtual machine`, `ipam > service` |
+| **Object types** | `dcim > device`, `virtualization > virtual machine`, `ipam > service`, `ipam > ip address` |
 
 The tag name is configurable:
 
@@ -209,6 +210,17 @@ Create it in NetBox with slug `management` if you use this rule.
 
 Any combination of tags works. A typical server might have `monitoring` + `linux`; a switch might have `monitoring` only.
 
+### `monitoring` tag on IP addresses (ICMP)
+
+In addition to devices and services, the `monitoring` tag can be placed on individual **IP address** entities in NetBox (IPAM → IP Addresses). When a tagged IP belongs to a device or VM that **also** has the `monitoring` tag, that specific IP is added to ICMP monitoring via the `probe_icmp` generator.
+
+This is useful when a device has multiple interface IPs and only some of them should be monitored:
+
+- Each tagged IP is enriched with the parent device's attributes (vendor, role, `criticality`, `os_type`, etc.), so it is matched against the **same `probe_icmp` groups** as the device itself.
+- The tagged IP is always used as the ICMP target, regardless of the group's `target_field`.
+- If a tagged IP duplicates a target already produced by the device (e.g. the device's `main_ip`), the duplicate is **skipped** (global deduplication by IP).
+- Tagged IPs whose parent device does **not** have the `monitoring` tag are skipped (the parent device is not in the fetched set and cannot provide enrichment).
+
 ---
 
 ## 5. Device Fields Read by the Service
@@ -218,6 +230,7 @@ Any combination of tags works. A typical server might have `monitoring` + `linux
 | NetBox API field | Internal field | Type | Notes |
 |---|---|---|---|
 | `name` | `name` | string | Device hostname |
+| `id` | `id` | int | NetBox device ID (used for IP-address enrichment) |
 | `primary_ip4.address` or `primary_ip.address` | `main_ip` | string | IP without prefix (e.g. `10.0.0.1`) |
 | `oob_ip.address` | `oob_ip` | string | Out-of-band IP without prefix |
 | `config_context.os` | `os_type` | string | From config context |
@@ -270,6 +283,7 @@ The service polls three endpoints:
 | `/api/dcim/devices/` | Physical devices | prometheus, probe_icmp, syslog |
 | `/api/virtualization/virtual-machines/` | Virtual machines | prometheus, probe_icmp, syslog |
 | `/api/ipam/services/` | IPAM services | probe_http, probe_tcp |
+| `/api/ipam/ip-addresses/` | IP addresses (tagged) | probe_icmp |
 
 ### Tag filtering
 
@@ -279,6 +293,7 @@ All endpoints are queried with `?tag=<your_tag>`:
 GET /api/dcim/devices/?tag=monitoring
 GET /api/virtualization/virtual-machines/?tag=monitoring
 GET /api/ipam/services/?tag=monitoring
+GET /api/ipam/ip-addresses/?tag=monitoring
 ```
 
 All matching devices, VMs, and services are fetched and processed by the relevant enabled generators.

@@ -6,7 +6,7 @@ from typing import Any
 import requests
 
 from .config import Config
-from .models import Device, Service
+from .models import Device, IpAddress, Service
 
 logger = logging.getLogger(__name__)
 
@@ -105,3 +105,10 @@ class NetBoxClient:
             with_ports,
         )
         return services
+
+    def get_ip_addresses(self) -> list[IpAddress]:
+        params = {"tag": self._tag} if self._tag else None
+        raw = self._fetch_all(self._endpoints["ip_addresses"], params)
+        result = [IpAddress.from_netbox(ip) for ip in raw]
+        logger.info("Fetched %d IP addresses", len(result))
+        return result
