@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import pynetbox
 import requests
+from pynetbox.core.query import RequestError
 
 from .config import Config
 from .models import Device, IpAddress, Service
@@ -15,72 +17,74 @@ class NetBoxError(RuntimeError):
     """Raised when NetBox returns an unrecoverable error."""
 
 
+class _TimeoutSession(requests.Session):
+    """``requests.Session`` that injects a default per-request timeout.
+
+    ``pynetbox`` does not expose a ``timeout`` argument on its API object,
+    and ``requests`` itself defaults to no timeout (i.e. waits forever).
+    Mounting this session on ``api.http_session`` guarantees every HTTP
+    call made by ``pynetbox`` is bounded by ``timeout``.
+    """
+
+    def __init__(self, timeout: float | None = None) -> None:
+        super().__init__()
+        self._timeout = timeout
+
+    def request(self, method, url, *args, **kwargs):  # type: ignore[override]
+        kwargs.setdefault("timeout", self._timeout)
+        return super().request(method, url, *args, **kwargs)
+
+
 class NetBoxClient:
+    """Thin wrapper over ``pynetbox.api``.
+
+    The wrapper:
+      * configures authentication, timeouts and the ``tag`` filter;
+      * uses ``limit``-based pagination so result sets larger than the
+        server-side ``MAX_PAGE_SIZE`` are not silently truncated;
+      * converts every ``Record`` returned by ``pynetbox`` back to a plain
+        ``dict`` so the existing ``from_netbox(dict)`` factories in
+        :mod:`netbox2prom.models` keep working unchanged;
+      * wraps ``pynetbox`` exceptions in :class:`NetBoxError` so callers do
+        not need to import ``pynetbox`` themselves.
+    """
+
     def __init__(self, config: Config) -> None:
-        self._url = config.netbox_url.rstrip("/")
-        self._token = config.netbox_token
-        self._tag = config.netbox_tag
-        self._endpoints = config.netbox_endpoints
-        self._timeout = config.netbox_timeout
+        self._tag = config.netbox_tag or None
         self._page_size = config.netbox_page_size
-        self._session = requests.Session()
-        self._session.headers.update({
-            "Authorization": f"Token {self._token}",
-            "Accept": "application/json",
-        })
 
-    def _fetch_all(
-        self, endpoint: str, params: dict[str, Any] | None = None
-    ) -> list[dict[str, Any]]:
-        """Fetch the full result list of a paged NetBox endpoint.
+        session = _TimeoutSession(timeout=config.netbox_timeout)
+        session.headers.update({"Accept": "application/json"})
 
-        Pagination is driven by ``offset`` against ``page_size`` rather than the
-        ``limit=0`` shortcut: when a NetBox deployment sets ``MAX_PAGE_SIZE`` the
-        server silently caps any request (including ``limit=0``), so a single
-        shot would drop everything beyond that cap. Walking the pages by offset
-        guarantees the complete result set is retrieved regardless of the
-        server-side limit.
-        """
-        base_params: dict[str, Any] = dict(params or {})
-        base_params["limit"] = self._page_size
-        url = f"{self._url}{endpoint}"
+        try:
+            self._api = pynetbox.api(
+                config.netbox_url,
+                token=config.netbox_token,
+            )
+            self._api.http_session = session
+        except RequestError as exc:
+            raise NetBoxError(f"Failed to initialise NetBox client: {exc}") from exc
 
-        results: list[dict[str, Any]] = []
-        offset = 0
-        while True:
-            request_params = dict(base_params)
-            request_params["offset"] = offset
-            try:
-                resp = self._session.get(
-                    url, params=request_params, timeout=self._timeout
-                )
-                resp.raise_for_status()
-            except requests.RequestException as exc:
-                raise NetBoxError(f"Failed to fetch {endpoint}: {exc}") from exc
+    def _filter_kwargs(self) -> dict[str, Any]:
+        # ``limit`` is the page size for offset pagination; with the default
+        # value of 0 pynetbox asks NetBox for everything in a single shot,
+        # which is silently truncated when the deployment enforces
+        # ``MAX_PAGE_SIZE``. Passing a positive page size forces proper
+        # pagination through the full result set.
+        kwargs: dict[str, Any] = {"limit": self._page_size}
+        if self._tag:
+            kwargs["tag"] = self._tag
+        return kwargs
 
-            payload = resp.json()
-            # Non-paged endpoints return a bare list; return it as-is.
-            if isinstance(payload, list):
-                return payload
-
-            page = list(payload.get("results", []))
-            results.extend(page)
-
-            # Stop on the last page: an empty page, a short page, or when the
-            # accumulated offset reaches the reported total count.
-            if not page or len(page) < self._page_size:
-                break
-            total = payload.get("count")
-            if isinstance(total, int) and offset + len(page) >= total:
-                break
-            offset += len(page)
-
-        return results
+    def _list(self, endpoint: Any) -> list[dict[str, Any]]:
+        try:
+            return [dict(record) for record in endpoint.filter(**self._filter_kwargs())]
+        except RequestError as exc:
+            raise NetBoxError(f"Failed to fetch from NetBox: {exc}") from exc
 
     def get_devices(self) -> list[Device]:
-        params = {"tag": self._tag} if self._tag else None
-        raw_physical = self._fetch_all(self._endpoints["devices"], params)
-        raw_virtual = self._fetch_all(self._endpoints["virtual_machines"], params)
+        raw_physical = self._list(self._api.dcim.devices)
+        raw_virtual = self._list(self._api.virtualization.virtual_machines)
         logger.info(
             "Fetched %d physical and %d virtual devices",
             len(raw_physical),
@@ -89,14 +93,15 @@ class NetBoxClient:
         return [Device.from_netbox(d) for d in raw_physical + raw_virtual]
 
     def get_services(self, website_field: str = "website") -> list[Service]:
-        params = {"tag": self._tag} if self._tag else None
-        raw_services = self._fetch_all(self._endpoints["services"], params)
+        raw_services = self._list(self._api.ipam.services)
         services = [
             Service.from_netbox(s, website_field=website_field)
             for s in raw_services
         ]
         with_website = sum(1 for s in services if s.website)
-        with_ports = sum(1 for s in services if not s.website and s.ports and s.ipaddresses)
+        with_ports = sum(
+            1 for s in services if not s.website and s.ports and s.ipaddresses
+        )
         logger.info(
             "Fetched %d services (%d with %s field, %d TCP/port targets)",
             len(raw_services),
@@ -107,8 +112,7 @@ class NetBoxClient:
         return services
 
     def get_ip_addresses(self) -> list[IpAddress]:
-        params = {"tag": self._tag} if self._tag else None
-        raw = self._fetch_all(self._endpoints["ip_addresses"], params)
+        raw = self._list(self._api.ipam.ip_addresses)
         result = [IpAddress.from_netbox(ip) for ip in raw]
         logger.info("Fetched %d IP addresses", len(result))
         return result

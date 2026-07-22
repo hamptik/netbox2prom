@@ -1,0 +1,10 @@
+{
+  "id": 3004,
+  "name": "Orphan",
+  "protocol": {"value": "tcp", "label": "TCP"},
+  "ports": [22],
+  "ipaddresses": [],
+  "description": "Service with no parent device/VM",
+  "custom_fields": {},
+  "tags": []
+}

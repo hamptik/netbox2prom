@@ -8,13 +8,6 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_ENDPOINTS = {
-    "devices": "/api/dcim/devices/",
-    "virtual_machines": "/api/virtualization/virtual-machines/",
-    "services": "/api/ipam/services/",
-    "ip_addresses": "/api/ipam/ip-addresses/",
-}
-
 _TRUE_VALUES = {"true", "1", "yes"}
 _FALSE_VALUES = {"false", "0", "no"}
 
@@ -41,11 +34,6 @@ class Config:
     @property
     def netbox_tag(self) -> str:
         return self.netbox.get("tag", "monitoring")
-
-    @property
-    def netbox_endpoints(self) -> dict[str, str]:
-        endpoints = self.netbox.get("endpoints", {})
-        return {**_DEFAULT_ENDPOINTS, **endpoints}
 
     @property
     def netbox_timeout(self) -> int:
@@ -124,4 +112,12 @@ def load_config() -> Config:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Invalid configuration file: {config_path}")
+
+    netbox_cfg = data.get("netbox") or {}
+    if "endpoints" in netbox_cfg:
+        logger.warning(
+            "netbox.endpoints is no longer supported — pynetbox uses fixed "
+            "API paths. The 'endpoints' key is ignored."
+        )
+
     return Config(data)

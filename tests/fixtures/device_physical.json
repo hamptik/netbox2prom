@@ -1,0 +1,43 @@
+{
+  "id": 1001,
+  "name": "device-01",
+  "device_type": {
+    "id": 5001,
+    "manufacturer": {
+      "id": 101,
+      "name": "Acme",
+      "slug": "acme"
+    },
+    "model": "Tower 100",
+    "slug": "tower-100"
+  },
+  "role": {
+    "id": 10,
+    "name": "Server",
+    "slug": "server"
+  },
+  "primary_ip4": {
+    "id": 4001,
+    "address": "192.0.2.10/24"
+  },
+  "primary_ip": {
+    "id": 4001,
+    "address": "192.0.2.10/24"
+  },
+  "oob_ip": {
+    "id": 4002,
+    "address": "192.0.2.11/24"
+  },
+  "config_context": {
+    "os": "linux",
+    "device_type": "device"
+  },
+  "custom_fields": {
+    "criticality": 3,
+    "snmp_ver": 3,
+    "snmp_cipher": "aes"
+  },
+  "tags": [
+    {"slug": "monitoring"}
+  ]
+}

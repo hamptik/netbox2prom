@@ -1,0 +1,20 @@
+{
+  "id": 3002,
+  "name": "IPMI",
+  "protocol": {"value": "tcp", "label": "TCP"},
+  "ports": [623],
+  "ipaddresses": [
+    {"id": 4020, "address": "192.0.2.11/24"}
+  ],
+  "description": "BMC",
+  "parent_object_type": "dcim.device",
+  "parent_object_id": 1001,
+  "parent": {
+    "id": 1001,
+    "name": "device-01",
+    "description": ""
+  },
+  "owner": null,
+  "custom_fields": {},
+  "tags": [{"slug": "monitoring"}]
+}

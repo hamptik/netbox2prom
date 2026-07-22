@@ -1,0 +1,25 @@
+{
+  "id": 2001,
+  "name": "vm-app-01",
+  "device_type": null,
+  "role": null,
+  "primary_ip4": null,
+  "primary_ip": {
+    "id": 4010,
+    "address": "192.0.2.20/24"
+  },
+  "oob_ip": null,
+  "config_context": {
+    "os": "linux"
+  },
+  "custom_fields": {
+    "criticality": 1,
+    "snmp_ver": 0,
+    "snmp_cipher": null
+  },
+  "vcpus": 4,
+  "memory": 8192,
+  "tags": [
+    {"slug": "monitoring"}
+  ]
+}

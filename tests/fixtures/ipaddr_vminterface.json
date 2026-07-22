@@ -1,0 +1,16 @@
+{
+  "id": 5002,
+  "address": "192.0.2.20/24",
+  "dns_name": "app.example.net",
+  "assigned_object_type": "virtualization.vminterface",
+  "assigned_object_id": 8001,
+  "assigned_object": {
+    "id": 8001,
+    "name": "eth0",
+    "virtual_machine": {
+      "id": 2001,
+      "name": "vm-app-01"
+    }
+  },
+  "tags": [{"slug": "monitoring"}]
+}

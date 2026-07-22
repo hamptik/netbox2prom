@@ -73,6 +73,28 @@ class Device:
         )
 
 
+def _extract_service_parent_name(data: dict) -> Optional[str]:
+    """Resolve the owning device/VM name for an IPAM Service across NetBox versions.
+
+    * NetBox <= 4.5: separate ``device`` / ``virtual_machine`` fields.
+    * NetBox >= 4.6: unified ``parent`` object alongside ``parent_object_type``
+      (e.g. ``dcim.device`` or ``virtualization.virtualmachine``).
+
+    Returns ``None`` when no parent is attached to the service.
+    """
+    device_obj = data.get("device")
+    vm_obj = data.get("virtual_machine")
+    if device_obj and device_obj.get("name"):
+        return device_obj["name"]
+    if vm_obj and vm_obj.get("name"):
+        return vm_obj["name"]
+
+    parent_obj = data.get("parent")
+    if parent_obj and parent_obj.get("name"):
+        return parent_obj["name"]
+    return None
+
+
 def _hostname_from_url(url: str) -> str:
     parsed = urlparse(url)
     return parsed.hostname or url
@@ -96,13 +118,7 @@ class Service:
 
         protocol_obj = data.get("protocol") or {}
 
-        device_obj = data.get("device")
-        vm_obj = data.get("virtual_machine")
-        device_name = None
-        if device_obj and device_obj.get("name"):
-            device_name = device_obj["name"]
-        elif vm_obj and vm_obj.get("name"):
-            device_name = vm_obj["name"]
+        device_name = _extract_service_parent_name(data)
 
         ports = [p for p in data.get("ports", []) if isinstance(p, int)]
 

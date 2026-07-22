@@ -1,0 +1,18 @@
+{
+  "id": 3001,
+  "name": "HTTPS",
+  "protocol": {"value": "tcp", "label": "TCP"},
+  "ports": [443],
+  "ipaddresses": [],
+  "description": "Wiki",
+  "device": null,
+  "virtual_machine": {
+    "id": 2001,
+    "name": "vm-app-01",
+    "description": ""
+  },
+  "custom_fields": {
+    "website": "https://wiki.example.net"
+  },
+  "tags": [{"slug": "monitoring"}]
+}
