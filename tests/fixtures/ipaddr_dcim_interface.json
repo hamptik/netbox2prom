@@ -1,0 +1,16 @@
+{
+  "id": 5001,
+  "address": "192.0.2.30/29",
+  "dns_name": "",
+  "assigned_object_type": "dcim.interface",
+  "assigned_object_id": 7001,
+  "assigned_object": {
+    "id": 7001,
+    "name": "eth0",
+    "device": {
+      "id": 1001,
+      "name": "device-01"
+    }
+  },
+  "tags": [{"slug": "monitoring"}]
+}

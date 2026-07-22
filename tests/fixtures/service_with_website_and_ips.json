@@ -1,0 +1,14 @@
+{
+  "id": 3003,
+  "name": "Web service",
+  "protocol": {"value": "tcp", "label": "TCP"},
+  "ports": [443, 8443],
+  "ipaddresses": [
+    {"id": 4021, "address": "192.0.2.21/24"}
+  ],
+  "description": "Multi-port service with website",
+  "custom_fields": {
+    "website": "https://app.example.net"
+  },
+  "tags": [{"slug": "monitoring"}]
+}
